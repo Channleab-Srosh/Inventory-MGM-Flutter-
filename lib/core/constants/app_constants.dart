@@ -8,19 +8,19 @@ class AppConstants {
   static const appVersion = '1.0.0';
 
   // API Configuration
-  static const hostWifiIp = '192.168.0.242';
+  static const hostWifiIp = '192.168.45.68';
   static const defaultPort = '8080';
 
   static const List<String> candidateBaseUrls = [
-    'http://192.168.0.242:8080/api/v1',
     'http://localhost:8080/api/v1',
+    'http://192.168.45.68:8080/api/v1',
     'http://10.0.2.2:8080/api/v1',
   ];
 
   static String get defaultBaseUrl {
     if (kIsWeb) return 'http://localhost:8080/api/v1';
     try {
-      if (Platform.isAndroid) return 'http://192.168.0.242:8080/api/v1';
+      if (Platform.isAndroid) return 'http://192.168.45.68:8080/api/v1';
     } catch (_) {}
     return 'http://localhost:8080/api/v1';
   }
