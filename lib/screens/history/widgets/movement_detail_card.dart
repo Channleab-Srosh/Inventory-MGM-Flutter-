@@ -1,0 +1,208 @@
+import 'package:flutter/material.dart';
+import 'package:inventory_management/core/theme/app_theme.dart';
+import 'package:inventory_management/core/utils/app_utils.dart';
+import 'package:inventory_management/models/stock_movement.dart';
+
+/// Transaction card matching Notion Page 11:
+/// Date, Product, Type, Qty, Before, After, User, Reference
+class MovementDetailCard extends StatelessWidget {
+  final StockMovement movement;
+  const MovementDetailCard({super.key, required this.movement});
+
+  @override
+  Widget build(BuildContext context) {
+    final isIn = movement.isStockIn;
+    final color = isIn ? AppColors.chartIn : AppColors.chartOut;
+    final theme = Theme.of(context);
+    final sign = isIn ? '+' : '-';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top: Icon + Product Name + Qty
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    isIn ? Icons.arrow_downward : Icons.arrow_upward,
+                    color: color,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        movement.productName,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              isIn ? 'STOCK_IN' : 'STOCK_OUT',
+                              style: TextStyle(
+                                color: color,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            AppUtils.formatTime(movement.date),
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '$sign${movement.quantity}',
+                      style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                      ),
+                    ),
+                    Text(
+                      movement.unit ?? 'units',
+                      style: const TextStyle(
+                        color: AppColors.secondaryText,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            const Divider(height: 1),
+            const SizedBox(height: 8),
+
+            // Middle: Before / After Stock comparison (Required by Notion)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppColors.grey800.withValues(alpha: 0.5)
+                    : AppColors.grey100,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Text(
+                        'Before: ',
+                        style:
+                            TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                      ),
+                      Text(
+                        movement.stockBefore != null
+                            ? '${movement.stockBefore} ${movement.unit ?? ""}'
+                            : '-',
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const Icon(Icons.arrow_forward,
+                      size: 14, color: AppColors.grey500),
+                  Row(
+                    children: [
+                      const Text(
+                        'After: ',
+                        style:
+                            TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                      ),
+                      Text(
+                        movement.stockAfter != null
+                            ? '${movement.stockAfter} ${movement.unit ?? ""}'
+                            : '-',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: isIn ? AppColors.inStock : AppColors.chartOut,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      const Icon(Icons.person_outline,
+                          size: 13, color: AppColors.grey500),
+                      const SizedBox(width: 4),
+                      Text(
+                        movement.userName,
+                        style: const TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Bottom metadata: reference, reason, note
+            if (movement.reference != null || movement.note != null) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  if (movement.reference != null)
+                    Expanded(
+                      child: Text(
+                        'Ref: ${movement.reference}',
+                        style: const TextStyle(
+                            fontSize: 11, color: AppColors.secondaryText),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  if (movement.note != null)
+                    Expanded(
+                      child: Text(
+                        'Note: ${movement.note}',
+                        style: const TextStyle(
+                            fontSize: 11, color: AppColors.secondaryText),
+                        textAlign: TextAlign.end,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -239,11 +239,26 @@ class StatusBadge extends StatelessWidget {
         icon: Icons.shield_outlined,
       );
 
+  factory StatusBadge.warehouseManager() => const StatusBadge(
+        label: 'WAREHOUSE MANAGER',
+        color: Color(0xFFD97706),
+        icon: Icons.warehouse_outlined,
+      );
+
   factory StatusBadge.staff() => const StatusBadge(
         label: 'STAFF',
         color: Color(0xFF0284C7),
         icon: Icons.badge_outlined,
       );
+
+  factory StatusBadge.role(String role) {
+    final r = role.toUpperCase();
+    if (r == 'ADMIN') return StatusBadge.admin();
+    if (r == 'WAREHOUSE_MANAGER' || r == 'WAREHOUSE MANAGER') {
+      return StatusBadge.warehouseManager();
+    }
+    return StatusBadge.staff();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -372,6 +387,54 @@ class ResponsiveContainer extends StatelessWidget {
         constraints: BoxConstraints(maxWidth: maxWidth),
         child: child,
       ),
+    );
+  }
+}
+
+/// 8. AppFilterChip: Reusable filter chip with optional icon, count badge, and custom color
+class AppFilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onSelected;
+  final IconData? icon;
+  final Color? color;
+
+  const AppFilterChip({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+    this.icon,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final activeColor = color ?? AppColors.primary;
+
+    return ChoiceChip(
+      avatar: icon != null
+          ? Icon(
+              icon,
+              size: 15,
+              color: selected ? activeColor : AppColors.secondaryText,
+            )
+          : null,
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onSelected(),
+      selectedColor: activeColor.withValues(alpha: 0.15),
+      labelStyle: TextStyle(
+        fontSize: 12,
+        color: selected ? activeColor : null,
+        fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+      ),
+      side: BorderSide(
+        color: selected
+            ? activeColor.withValues(alpha: 0.4)
+            : Colors.grey.withValues(alpha: 0.25),
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     );
   }
 }

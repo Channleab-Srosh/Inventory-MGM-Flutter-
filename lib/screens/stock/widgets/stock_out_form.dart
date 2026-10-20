@@ -1,0 +1,269 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../providers/product_provider.dart';
+import '../../../providers/stock_provider.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/common_widgets.dart';
+import '../../../models/stock_movement.dart';
+import '../../../models/product.dart';
+import 'stock_form_components.dart';
+
+/// Form widget for recording Stock Out
+class StockOutForm extends StatefulWidget {
+  const StockOutForm({super.key});
+
+  @override
+  State<StockOutForm> createState() => _StockOutFormState();
+}
+
+class _StockOutFormState extends State<StockOutForm> {
+  final _formKey = GlobalKey<FormState>();
+  Product? _selectedProduct;
+  int _quantity = 1;
+  StockOutReason _reason = StockOutReason.sale;
+  final _noteCtrl = TextEditingController();
+  DateTime _date = DateTime.now();
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _noteCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final auth = context.read<AuthProvider>();
+    if (auth.user?.canStockOut != true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Permission denied: Staff accounts cannot perform stock out.'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedProduct == null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Select a product')));
+      return;
+    }
+    final availableQty = _selectedProduct?.quantity ?? 0;
+    if (_quantity > availableQty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Row(children: [
+          const Icon(Icons.error_outline, color: Colors.white),
+          const SizedBox(width: 8),
+          Text(
+              'Insufficient stock. Available quantity: $availableQty ${_selectedProduct?.unit ?? "pcs"}'),
+        ]),
+        backgroundColor: AppColors.danger,
+      ));
+      return;
+    }
+
+    final stock = context.read<StockProvider>();
+    final products = context.read<ProductProvider>();
+
+    setState(() => _submitting = true);
+
+    try {
+      final noteParts = [
+        'Reason: ${_reason.name}',
+        if (_noteCtrl.text.trim().isNotEmpty) _noteCtrl.text.trim(),
+      ];
+      final note = noteParts.join(' - ');
+
+      await stock.recordStockOut(
+        productId: _selectedProduct!.id,
+        quantity: _quantity,
+        note: note,
+      );
+      products.adjustQuantity(_selectedProduct!.id, -_quantity);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _submitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed: ${e.toString()}'),
+          backgroundColor: AppColors.danger,
+        ));
+      }
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _submitting = false;
+        _selectedProduct = null;
+        _quantity = 1;
+        _reason = StockOutReason.sale;
+        _noteCtrl.clear();
+        _date = DateTime.now();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Row(children: [
+          Icon(Icons.check_circle, color: Colors.white),
+          SizedBox(width: 8),
+          Text('Stock Out recorded successfully!'),
+        ]),
+        backgroundColor: AppColors.chartOut,
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    if (auth.user?.canStockOut != true) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.lock_outline, size: 56, color: AppColors.chartOut),
+              const SizedBox(height: 16),
+              Text(
+                'Stock Out Restricted',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Your account has the Staff role. Staff members are not permitted to record Stock Out movements.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.secondaryText),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final stock = context.watch<StockProvider>();
+    final availableQty = _selectedProduct?.quantity ?? 0;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ProductSelectorField(
+                selectedProduct: _selectedProduct,
+                onSelect: (p) => setState(() {
+                  _selectedProduct = p;
+                  _quantity = 1;
+                }),
+              ),
+              if (_selectedProduct != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Available: $availableQty ${_selectedProduct!.unit}',
+                  style: TextStyle(
+                    color: availableQty == 0
+                        ? AppColors.outOfStock
+                        : AppColors.grey500,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+
+              Row(
+                children: [
+                  Text(
+                    _selectedProduct != null
+                        ? 'Quantity (${_selectedProduct!.unit})'
+                        : 'Quantity',
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  const Spacer(),
+                  QuantityStepper(
+                    value: _quantity,
+                    max: availableQty > 0 ? availableQty : 1,
+                    onChanged: (v) => setState(() => _quantity = v),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Reason chips
+              const Text('Reason',
+                  style: TextStyle(fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: StockOutReason.values.map((r) {
+                  final label = _reasonLabel(r);
+                  return ChoiceChip(
+                    label: Text(label),
+                    selected: _reason == r,
+                    onSelected: (_) => setState(() => _reason = r),
+                    selectedColor: AppColors.chartOut.withValues(alpha: 0.15),
+                    labelStyle: TextStyle(
+                      color: _reason == r ? AppColors.chartOut : null,
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 12),
+
+              DatePickerField(
+                date: _date,
+                onChanged: (d) => setState(() => _date = d),
+              ),
+              const SizedBox(height: 12),
+
+              TextFormField(
+                controller: _noteCtrl,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Note (optional)',
+                  alignLabelWithHint: true,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              ElevatedButton.icon(
+                onPressed: _submitting ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.chartOut),
+                icon: _submitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.arrow_upward),
+                label: const Text('Record Stock Out'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        const SectionHeader(title: 'Recent Stock Out'),
+        const SizedBox(height: 8),
+        ...stock.recentTransactions
+            .where((m) => m.type == MovementType.stockOut)
+            .take(5)
+            .map((m) => StockRecentTile(movement: m)),
+        const SizedBox(height: 80),
+      ],
+    );
+  }
+
+  String _reasonLabel(StockOutReason r) {
+    switch (r) {
+      case StockOutReason.sale:
+        return 'Sale';
+      case StockOutReason.damaged:
+        return 'Damaged';
+      case StockOutReason.other:
+        return 'Other';
+    }
+  }
+}

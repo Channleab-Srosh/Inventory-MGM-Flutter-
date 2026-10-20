@@ -1,8 +1,29 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 /// App-wide constants
 class AppConstants {
   // App info
   static const appName = 'Inventory Manager';
   static const appVersion = '1.0.0';
+
+  // API Configuration
+  static const hostWifiIp = '192.168.0.242';
+  static const defaultPort = '8080';
+
+  static const List<String> candidateBaseUrls = [
+    'http://192.168.0.242:8080/api/v1',
+    'http://localhost:8080/api/v1',
+    'http://10.0.2.2:8080/api/v1',
+  ];
+
+  static String get defaultBaseUrl {
+    if (kIsWeb) return 'http://localhost:8080/api/v1';
+    try {
+      if (Platform.isAndroid) return 'http://192.168.0.242:8080/api/v1';
+    } catch (_) {}
+    return 'http://localhost:8080/api/v1';
+  }
 
   // Default low stock threshold
   static const defaultLowStockThreshold = 10;
@@ -24,11 +45,18 @@ class AppConstants {
   static const routeMore = '/more';
   static const routeCategories = '/more/categories';
   static const routeSuppliers = '/more/suppliers';
+  static const routeUsers = '/more/users';
   static const routeSettings = '/more/settings';
 
-  // Mock user
+  // Real backend credentials
+  static const defaultAdminUsername = 'admin';
+  static const defaultAdminPassword = 'Admin@12345';
+  static const defaultStaffUsername = 'staff';
+  static const defaultStaffPassword = 'Staff@12345';
+
+  // Legacy/Fallback mock credentials
   static const mockEmail = 'admin@inventory.com';
   static const mockPassword = 'password123';
-  static const mockUserName = 'Alex Johnson';
+  static const mockUserName = 'System Administrator';
   static const mockUserRole = 'Admin';
 }

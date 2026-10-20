@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/category_provider.dart';
 import '../../providers/supplier_provider.dart';
@@ -28,6 +29,8 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
 
   String? _selectedCategoryId;
   String? _selectedSupplierId;
+  String _status = 'Active';
+  late String _unit;
   bool _saving = false;
 
   bool get _isEditing => widget.productId != null;
@@ -48,8 +51,17 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     _minStockCtrl = TextEditingController(
         text: product != null ? product.minStockLevel.toString() : '10');
     _descCtrl = TextEditingController(text: product?.description ?? '');
+
+    final initialUnit = product?.unit.toLowerCase() ?? 'pcs';
+    if (Product.commonUnits.contains(initialUnit)) {
+      _unit = initialUnit;
+    } else {
+      _unit = 'pcs';
+    }
+
     _selectedCategoryId = product?.categoryId;
     _selectedSupplierId = product?.supplierId;
+    _status = product?.status ?? 'Active';
   }
 
   @override
@@ -64,13 +76,23 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
   }
 
   Future<void> _save() async {
+    final auth = context.read<AuthProvider>();
+    if (auth.user?.canManageProducts != true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Staff accounts have view-only access to products.'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedCategoryId == null) {
+    if (_selectedCategoryId == null || _selectedCategoryId!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please select a category')));
       return;
     }
-    if (_selectedSupplierId == null) {
+    if (_selectedSupplierId == null || _selectedSupplierId!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please select a supplier')));
       return;
@@ -80,45 +102,90 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     final products = context.read<ProductProvider>();
 
     setState(() => _saving = true);
-    await Future.delayed(const Duration(milliseconds: 400));
 
+    final effectiveUnit = _unit;
+
+    bool success = false;
     if (_isEditing) {
       final existing = products.findById(widget.productId!);
       if (existing != null) {
-        products.updateProduct(existing.copyWith(
+        success = await products.updateProduct(existing.copyWith(
           name: _nameCtrl.text.trim(),
           sku: _skuCtrl.text.trim(),
           price: double.parse(_priceCtrl.text),
           quantity: int.parse(_qtyCtrl.text),
           minStockLevel: int.parse(_minStockCtrl.text),
+          unit: effectiveUnit,
           categoryId: _selectedCategoryId,
           supplierId: _selectedSupplierId,
+          status: _status,
           description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
         ));
       }
     } else {
-      products.addProduct(Product(
+      final created = await products.addProduct(Product(
         id: products.generateId(),
         name: _nameCtrl.text.trim(),
         sku: _skuCtrl.text.trim(),
         price: double.parse(_priceCtrl.text),
         quantity: int.parse(_qtyCtrl.text),
         minStockLevel: int.parse(_minStockCtrl.text),
+        unit: effectiveUnit,
         categoryId: _selectedCategoryId!,
         supplierId: _selectedSupplierId!,
+        status: _status,
         description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
       ));
+      success = created != null;
     }
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_isEditing ? 'Product updated!' : 'Product added!')));
-      Navigator.of(context).pop();
+      setState(() => _saving = false);
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(_isEditing ? 'Product updated!' : 'Product added!')));
+        Navigator.of(context).pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(products.error ?? 'Failed to save product'),
+            backgroundColor: AppColors.danger));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    if (auth.user?.canManageProducts != true) {
+      return Scaffold(
+        appBar: AppBar(title: Text(_isEditing ? 'Edit Product' : 'Add Product')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.lock_outline, size: 64, color: AppColors.danger),
+                const SizedBox(height: 16),
+                Text('Access Restricted', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 8),
+                const Text(
+                  'Staff accounts have view-only access to products. Adding and editing products is restricted to administrators and warehouse managers.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.secondaryText),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Go Back'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     final categories = context.watch<CategoryProvider>().categories;
     final suppliers = context.watch<SupplierProvider>().allSuppliers;
     final theme = Theme.of(context);
@@ -146,12 +213,12 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                         color: AppColors.primary.withValues(alpha: 0.3),
                         style: BorderStyle.solid),
                   ),
-                  child: Column(
+                  child: const Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.camera_alt_outlined,
                           color: AppColors.primary, size: 32),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4),
                       Text('Add Photo',
                           style: TextStyle(
                               color: AppColors.primary, fontSize: 11)),
@@ -206,7 +273,9 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
 
             // Category dropdown
             DropdownButtonFormField<String>(
-              value: _selectedCategoryId,
+              initialValue: categories.any((c) => c.id == _selectedCategoryId)
+                  ? _selectedCategoryId
+                  : null,
               decoration: const InputDecoration(labelText: 'Category *'),
               items: categories
                   .map((c) => DropdownMenuItem(
@@ -221,7 +290,9 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
 
             // Supplier dropdown
             DropdownButtonFormField<String>(
-              value: _selectedSupplierId,
+              initialValue: suppliers.any((s) => s.id == _selectedSupplierId)
+                  ? _selectedSupplierId
+                  : null,
               decoration: const InputDecoration(labelText: 'Supplier *'),
               items: suppliers
                   .map((s) => DropdownMenuItem(
@@ -231,6 +302,20 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                   .toList(),
               onChanged: (v) => setState(() => _selectedSupplierId = v),
               validator: (v) => v == null ? 'Supplier is required' : null,
+            ),
+            const SizedBox(height: 12),
+
+            // Status dropdown
+            DropdownButtonFormField<String>(
+              initialValue: _status,
+              decoration: const InputDecoration(labelText: 'Status *'),
+              items: const [
+                DropdownMenuItem(value: 'Active', child: Text('Active')),
+                DropdownMenuItem(value: 'Inactive', child: Text('Inactive')),
+              ],
+              onChanged: (v) {
+                if (v != null) setState(() => _status = v);
+              },
             ),
             const SizedBox(height: 20),
 
@@ -254,17 +339,42 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
             ),
             const SizedBox(height: 12),
 
+            // Unit of Measure selector
+            DropdownButtonFormField<String>(
+              initialValue: _unit,
+              decoration: const InputDecoration(
+                labelText: 'Unit of Measure *',
+                prefixIcon: Icon(Icons.straighten_outlined, size: 20),
+              ),
+              items: Product.commonUnits
+                  .map((u) => DropdownMenuItem(
+                        value: u,
+                        child: Text('${u.toUpperCase()} (${_unitDescription(u)})'),
+                      ))
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) {
+                  setState(() => _unit = v);
+                }
+              },
+            ),
+            const SizedBox(height: 12),
+
             Row(
               children: [
                 Expanded(
                   child: TextFormField(
                     controller: _qtyCtrl,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Initial Qty *'),
+                    decoration: InputDecoration(
+                      labelText: 'Initial Qty *',
+                      suffixText: _unit,
+                    ),
                     validator: (v) {
                       if (v == null || v.isEmpty) return 'Required';
                       final n = int.tryParse(v);
-                      if (n == null || n < 0) return 'Invalid';
+                      if (n == null) return 'Invalid number';
+                      if (n < 0) return 'Stock quantity cannot be negative';
                       return null;
                     },
                   ),
@@ -274,11 +384,15 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                   child: TextFormField(
                     controller: _minStockCtrl,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Min Stock *'),
+                    decoration: InputDecoration(
+                      labelText: 'Min Stock *',
+                      suffixText: _unit,
+                    ),
                     validator: (v) {
                       if (v == null || v.isEmpty) return 'Required';
                       final n = int.tryParse(v);
-                      if (n == null || n < 0) return 'Invalid';
+                      if (n == null) return 'Invalid number';
+                      if (n < 0) return 'Min stock cannot be negative';
                       return null;
                     },
                   ),
@@ -321,5 +435,36 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
   Widget _sectionLabel(ThemeData theme, String label) {
     return Text(label,
         style: theme.textTheme.titleMedium?.copyWith(color: AppColors.primary));
+  }
+
+  String _unitDescription(String unit) {
+    switch (unit) {
+      case 'pcs':
+        return 'Pieces';
+      case 'can':
+        return 'Cans / Tins';
+      case 'kg':
+        return 'Kilograms';
+      case 'g':
+        return 'Grams';
+      case 'box':
+        return 'Boxes';
+      case 'bottle':
+        return 'Bottles';
+      case 'pack':
+        return 'Packs';
+      case 'liter':
+        return 'Liters';
+      case 'carton':
+        return 'Cartons';
+      case 'bag':
+        return 'Bags';
+      case 'set':
+        return 'Sets';
+      case 'unit':
+        return 'Units';
+      default:
+        return unit;
+    }
   }
 }

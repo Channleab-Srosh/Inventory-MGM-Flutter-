@@ -16,6 +16,7 @@ import '../../screens/more/categories_screen.dart';
 import '../../screens/more/suppliers_screen.dart';
 import '../../screens/more/reports_screen.dart';
 import '../../screens/more/profile_screen.dart';
+import '../../screens/more/users_screen.dart';
 import '../../screens/more/settings_screen.dart';
 
 class AppRouter {
@@ -61,11 +62,21 @@ class AppRouter {
               GoRoute(
                 path: 'add',
                 parentNavigatorKey: _rootKey,
+                redirect: (context, state) {
+                  final auth = context.read<AuthProvider>();
+                  if (auth.user?.canManageProducts != true) return '/products';
+                  return null;
+                },
                 builder: (_, __) => const AddEditProductScreen(),
               ),
               GoRoute(
                 path: 'edit/:id',
                 parentNavigatorKey: _rootKey,
+                redirect: (context, state) {
+                  final auth = context.read<AuthProvider>();
+                  if (auth.user?.canManageProducts != true) return '/products';
+                  return null;
+                },
                 builder: (_, state) => AddEditProductScreen(
                   productId: state.pathParameters['id'],
                 ),
@@ -81,7 +92,11 @@ class AppRouter {
           ),
           GoRoute(
             path: '/stock',
-            builder: (_, __) => const StockScreen(),
+            builder: (context, state) {
+              final tab = state.uri.queryParameters['tab'];
+              final initialTab = tab == 'out' ? 1 : 0;
+              return StockScreen(initialTab: initialTab);
+            },
           ),
           GoRoute(
             path: '/reports',
@@ -112,8 +127,18 @@ class AppRouter {
         redirect: (_, __) => '/profile',
       ),
       GoRoute(
+        path: '/more/history',
+        redirect: (_, __) => '/history',
+      ),
+      GoRoute(
         path: '/more/categories',
         parentNavigatorKey: _rootKey,
+        redirect: (context, state) {
+          final auth = context.read<AuthProvider>();
+          if (!auth.isAuthenticated) return '/login';
+          if (auth.user?.canViewCategories != true) return '/dashboard';
+          return null;
+        },
         builder: (_, __) => const CategoriesScreen(),
       ),
       GoRoute(
@@ -122,8 +147,25 @@ class AppRouter {
         builder: (_, __) => const SuppliersScreen(),
       ),
       GoRoute(
+        path: '/more/users',
+        parentNavigatorKey: _rootKey,
+        redirect: (context, state) {
+          final auth = context.read<AuthProvider>();
+          if (!auth.isAuthenticated) return '/login';
+          if (auth.user?.canManageUsers != true) return '/dashboard';
+          return null;
+        },
+        builder: (_, __) => const UsersScreen(),
+      ),
+      GoRoute(
         path: '/more/settings',
         parentNavigatorKey: _rootKey,
+        redirect: (context, state) {
+          final auth = context.read<AuthProvider>();
+          if (!auth.isAuthenticated) return '/login';
+          if (!auth.user!.isAdmin) return '/dashboard';
+          return null;
+        },
         builder: (_, __) => const SettingsScreen(),
       ),
     ],

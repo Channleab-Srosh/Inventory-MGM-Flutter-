@@ -1,96 +1,356 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/category_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../models/category.dart';
 
-/// Categories management screen
-class CategoriesScreen extends StatelessWidget {
+/// Features 6 & 7: Category Management Screen
+/// Operations: Add, View, Edit, Delete, Search
+/// Business rule: If category is used by products, recommend soft deactivation.
+class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
 
   @override
+  State<CategoriesScreen> createState() => _CategoriesScreenState();
+}
+
+class _CategoriesScreenState extends State<CategoriesScreen> {
+  final _searchCtrl = TextEditingController();
+  bool? _statusFilter; // true=Active, false=Inactive, null=All
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final cat = context.read<CategoryProvider>();
+      if (cat.allCategories.isEmpty) cat.fetchCategories();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    if (auth.user?.canViewCategories != true) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Category Management')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.lock_outline, size: 64, color: AppColors.danger),
+                const SizedBox(height: 16),
+                Text('Access Restricted', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 8),
+                const Text(
+                  'Staff accounts do not have permission to view or manage categories.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.secondaryText),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Go Back'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     final catProv = context.watch<CategoryProvider>();
     final prodProv = context.watch<ProductProvider>();
-    final categories = catProv.categories;
+    final allCats = catProv.categories;
+
+    final categories = allCats.where((c) {
+      if (_statusFilter != null && c.isActive != _statusFilter) {
+        return false;
+      }
+      return true;
+    }).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Categories')),
-      body: categories.isEmpty
-          ? EmptyState(
-              message: 'No categories yet',
-              icon: Icons.category_outlined,
-              action: ElevatedButton.icon(
-                onPressed: () => _showAddEditSheet(context, null),
-                icon: const Icon(Icons.add),
-                label: const Text('Add Category'),
-              ),
-            )
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: categories.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 0),
-              itemBuilder: (_, i) {
-                final cat = categories[i];
-                final count = prodProv.allProducts
-                    .where((p) => p.categoryId == cat.id)
-                    .length;
-                return Dismissible(
-                  key: ValueKey(cat.id),
-                  direction: DismissDirection.endToStart,
-                  confirmDismiss: (_) => ConfirmDialog.show(
-                    context,
-                    title: 'Delete Category',
-                    message:
-                        'Delete "${cat.name}"? Products in this category will not be deleted.',
-                  ),
-                  onDismissed: (_) => catProv.deleteCategory(cat.id),
-                  background: Container(
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: 20),
-                    decoration: BoxDecoration(
-                      color: AppColors.outOfStock,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Icon(Icons.delete_outlined, color: Colors.white),
-                  ),
-                  child: Card(
-                    child: ListTile(
-                      leading: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.category_outlined,
-                            color: AppColors.primary, size: 22),
-                      ),
-                      title: Text(cat.name),
-                      subtitle: Text('$count products'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit_outlined, size: 20),
-                            onPressed: () => _showAddEditSheet(context, cat),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
+      appBar: AppBar(
+        title: const Text('Category Management'),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: SearchField(
+              controller: _searchCtrl,
+              hint: 'Search categories...',
+              onChanged: catProv.setSearch,
             ),
-      floatingActionButton: FloatingActionButton(
+          ),
+        ),
+      ),
+      body: Column(
+        children: [
+          // Filter chips
+          SizedBox(
+            height: 46,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                _StatusFilterChip(
+                  label: 'All (${catProv.allCategories.length})',
+                  selected: _statusFilter == null,
+                  onSelected: () => setState(() => _statusFilter = null),
+                ),
+                const SizedBox(width: 8),
+                _StatusFilterChip(
+                  label: 'Active (${catProv.allCategories.where((c) => c.isActive).length})',
+                  selected: _statusFilter == true,
+                  color: AppColors.inStock,
+                  onSelected: () => setState(() => _statusFilter = true),
+                ),
+                const SizedBox(width: 8),
+                _StatusFilterChip(
+                  label: 'Inactive (${catProv.allCategories.where((c) => !c.isActive).length})',
+                  selected: _statusFilter == false,
+                  color: AppColors.danger,
+                  onSelected: () => setState(() => _statusFilter = false),
+                ),
+              ],
+            ),
+          ),
+
+          Expanded(
+            child: catProv.isLoading && catProv.allCategories.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : catProv.error != null && catProv.allCategories.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.error_outline, size: 48, color: AppColors.danger),
+                              const SizedBox(height: 12),
+                              Text(
+                                catProv.error!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: AppColors.danger, fontSize: 14),
+                              ),
+                              const SizedBox(height: 16),
+                              FilledButton(
+                                onPressed: () => catProv.fetchCategories(),
+                                child: const Text('Retry'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: () => catProv.fetchCategories(),
+                        child: categories.isEmpty
+                            ? ListView(
+                                children: [
+                                  const SizedBox(height: 80),
+                                  EmptyState(
+                                    message: 'No categories found',
+                                    subtitle: catProv.search.isNotEmpty
+                                        ? 'Try a different search term'
+                                        : 'Tap the + button to create a category',
+                                    icon: Icons.category_outlined,
+                                  ),
+                                ],
+                              )
+                            : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
+                    itemCount: categories.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 6),
+                    itemBuilder: (_, i) {
+                      final cat = categories[i];
+                      final count = prodProv.allProducts
+                          .where((p) => p.categoryId == cat.id)
+                          .length;
+
+                      return Card(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(Icons.category_outlined,
+                                    color: AppColors.primary, size: 22),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            cat.name,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 15,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: (cat.isActive ? AppColors.inStock : AppColors.danger)
+                                                .withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            cat.isActive ? 'ACTIVE' : 'INACTIVE',
+                                            style: TextStyle(
+                                              color: cat.isActive ? AppColors.inStock : AppColors.danger,
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '$count product${count == 1 ? "" : "s"} assigned',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.secondaryText,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.edit_outlined, size: 20),
+                                tooltip: 'Edit',
+                                onPressed: () => _showAddEditSheet(context, cat),
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  cat.isActive ? Icons.toggle_on : Icons.toggle_off,
+                                  size: 26,
+                                  color: cat.isActive ? AppColors.inStock : AppColors.grey500,
+                                ),
+                                tooltip: cat.isActive ? 'Deactivate' : 'Reactivate',
+                                onPressed: () {
+                                  catProv.toggleCategoryStatus(cat.id);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        '"${cat.name}" is now ${cat.isActive ? "inactive" : "active"}',
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline,
+                                    size: 20, color: AppColors.danger),
+                                tooltip: 'Delete',
+                                onPressed: () => _handleDeleteCategory(context, cat, count),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddEditSheet(context, null),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add),
+        label: const Text('Add Category'),
       ),
     );
+  }
+
+  /// Business Rule Implementation (Notion Page 7):
+  /// "If a category is being used by products, you should decide whether:
+  /// • deletion is blocked, or
+  /// • the category becomes inactive.
+  /// For your project, I recommend soft deactivation."
+  Future<void> _handleDeleteCategory(BuildContext context, Category cat, int productCount) async {
+    final catProv = context.read<CategoryProvider>();
+
+    if (productCount > 0) {
+      // Products are using this category -> Recommend soft deactivation as per Notion
+      final result = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Category In Use'),
+          content: Text(
+            'Category "${cat.name}" has $productCount product(s) linked to it.\n\n'
+            'To maintain catalog integrity, soft deactivation is recommended instead of permanent deletion.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, 'cancel'),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.pause_circle_outline, size: 18),
+              label: const Text('Soft Deactivate'),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.warning),
+              onPressed: () => Navigator.pop(ctx, 'deactivate'),
+            ),
+          ],
+        ),
+      );
+
+      if (result == 'deactivate' && context.mounted) {
+        catProv.deactivateCategory(cat.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('"${cat.name}" has been soft-deactivated.'),
+            backgroundColor: AppColors.warning,
+          ),
+        );
+      }
+    } else {
+      // No products using this category -> Allow clean deletion
+      final confirmed = await ConfirmDialog.show(
+        context,
+        title: 'Delete Category',
+        message: 'Are you sure you want to delete "${cat.name}"? This category has no products.',
+        confirmLabel: 'Delete',
+        confirmColor: AppColors.danger,
+      );
+
+      if (confirmed && context.mounted) {
+        catProv.deleteCategory(cat.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Category "${cat.name}" deleted.'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
   }
 
   void _showAddEditSheet(BuildContext context, Category? category) {
@@ -98,8 +358,38 @@ class CategoriesScreen extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (_) => _AddEditCategorySheet(category: category),
+    );
+  }
+}
+
+class _StatusFilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final Color? color;
+  final VoidCallback onSelected;
+
+  const _StatusFilterChip({
+    required this.label,
+    required this.selected,
+    this.color,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? AppColors.primary;
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onSelected(),
+      selectedColor: c.withValues(alpha: 0.15),
+      labelStyle: TextStyle(
+        color: selected ? c : null,
+        fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+      ),
     );
   }
 }
@@ -115,12 +405,15 @@ class _AddEditCategorySheet extends StatefulWidget {
 class _AddEditCategorySheetState extends State<_AddEditCategorySheet> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
+  bool _isActive = true;
+
   bool get _isEditing => widget.category != null;
 
   @override
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.category?.name ?? '');
+    _isActive = widget.category?.isActive ?? true;
   }
 
   @override
@@ -129,57 +422,103 @@ class _AddEditCategorySheetState extends State<_AddEditCategorySheet> {
     super.dispose();
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     final prov = context.read<CategoryProvider>();
+    final name = _nameCtrl.text.trim();
+
     if (_isEditing) {
-      prov.updateCategory(widget.category!.copyWith(name: _nameCtrl.text.trim()));
-    } else {
-      prov.addCategory(Category(
-        id: prov.generateId(),
-        name: _nameCtrl.text.trim(),
+      await prov.updateCategory(widget.category!.copyWith(
+        name: name,
+        isActive: _isActive,
       ));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Category updated successfully!')),
+        );
+      }
+    } else {
+      await prov.addCategory(Category(
+        id: prov.generateId(),
+        name: name,
+        isActive: _isActive,
+      ));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('New category created successfully!')),
+        );
+      }
     }
-    Navigator.pop(context);
+    if (mounted) {
+      Navigator.pop(context);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Padding(
       padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-          left: 20, right: 20, top: 20),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                  width: 40, height: 4,
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
-                      color: AppColors.grey200,
-                      borderRadius: BorderRadius.circular(2))),
-            ),
-            const SizedBox(height: 16),
-            Text(_isEditing ? 'Edit Category' : 'Add Category',
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _nameCtrl,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'Category Name *'),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Name is required' : null,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _save,
-              child: Text(_isEditing ? 'Update' : 'Add Category'),
-            ),
-            const SizedBox(height: 16),
-          ],
+                    color: AppColors.grey200,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _isEditing ? 'Edit Category' : 'New Category',
+                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _nameCtrl,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Category Name',
+                  hintText: 'e.g. Drinks, Food, Electronics',
+                  prefixIcon: Icon(Icons.label_outline),
+                ),
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Category name is required' : null,
+              ),
+              const SizedBox(height: 16),
+              SwitchListTile(
+                title: const Text('Active Status'),
+                subtitle: Text(_isActive
+                    ? 'Products can be assigned to this category'
+                    : 'Category is inactive'),
+                value: _isActive,
+                onChanged: (val) => setState(() => _isActive = val),
+                activeThumbColor: AppColors.inStock,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _save,
+                icon: const Icon(Icons.check),
+                label: Text(_isEditing ? 'Save Changes' : 'Create Category'),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );

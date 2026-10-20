@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/category_provider.dart';
 import '../../providers/supplier_provider.dart';
@@ -30,6 +32,9 @@ class ProductDetailScreen extends StatelessWidget {
       );
     }
 
+    final auth = context.watch<AuthProvider>();
+    final canManageProducts = auth.user?.canManageProducts ?? true;
+    final canViewCategories = auth.user?.canViewCategories ?? true;
     final categories = context.watch<CategoryProvider>();
     final suppliers = context.watch<SupplierProvider>();
     final stock = context.watch<StockProvider>();
@@ -50,7 +55,7 @@ class ProductDetailScreen extends StatelessWidget {
                 tag: 'product-$productId',
                 child: Container(
                   color: AppColors.primary.withValues(alpha: 0.08),
-                  child: Column(
+                  child: const Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.inventory_2_outlined,
@@ -61,10 +66,11 @@ class ProductDetailScreen extends StatelessWidget {
               ),
             ),
             actions: [
-              IconButton(
-                icon: const Icon(Icons.edit_outlined),
-                onPressed: () => context.push('/products/edit/$productId'),
-              ),
+              if (canManageProducts)
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () => context.push('/products/edit/$productId'),
+                ),
             ],
           ),
 
@@ -94,24 +100,35 @@ class ProductDetailScreen extends StatelessWidget {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        _InfoRow('Category', category?.name ?? '-'),
+                        _InfoRow('Product ID', product.id),
                         const Divider(height: 20),
-                        _InfoRow('Supplier', supplier?.name ?? '-'),
+                        if (canViewCategories) ...[
+                          _InfoRow('Category', category?.name ?? product.categoryName ?? '-'),
+                          const Divider(height: 20),
+                        ],
+                        _InfoRow('Supplier', supplier?.name ?? product.supplierName ?? '-'),
                         const Divider(height: 20),
                         _InfoRow('Price',
                             AppUtils.formatCurrency(product.price)),
                         const Divider(height: 20),
-                        _InfoRow('Current Qty',
-                            AppUtils.formatNumber(product.quantity)),
+                        _InfoRow('Unit of Measure', product.unit),
                         const Divider(height: 20),
-                        _InfoRow('Min Stock', '${product.minStockLevel}'),
+                        _InfoRow('Current Qty',
+                            '${AppUtils.formatNumber(product.quantity)} ${product.unit}'),
+                        const Divider(height: 20),
+                        _InfoRow('Min Stock', '${product.minStockLevel} ${product.unit}'),
                         const Divider(height: 20),
                         _InfoRow('Stock Value',
                             AppUtils.formatCurrency(
                                 product.price * product.quantity)),
                         const Divider(height: 20),
-                        _InfoRow('Added',
+                        _InfoRow('Status', product.status),
+                        const Divider(height: 20),
+                        _InfoRow('Created Date',
                             AppUtils.formatDate(product.createdAt)),
+                        const Divider(height: 20),
+                        _InfoRow('Updated Date',
+                            AppUtils.formatDate(product.updatedAt)),
                       ],
                     ),
                   ),
@@ -128,7 +145,7 @@ class ProductDetailScreen extends StatelessWidget {
                 ],
 
                 // Stock history
-                SectionHeader(title: 'Stock History'),
+                const SectionHeader(title: 'Stock History'),
                 const SizedBox(height: 8),
                 if (movements.isEmpty)
                   const Padding(
@@ -208,10 +225,14 @@ class _MovementTile extends StatelessWidget {
         isIn ? 'Stock In' : 'Stock Out',
         style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
       ),
-      subtitle: Text(AppUtils.formatDateTime(movement.date),
-          style: theme.textTheme.bodyMedium),
+      subtitle: Text(
+        movement.stockBefore != null && movement.stockAfter != null
+            ? '${AppUtils.formatDateTime(movement.date)} · Stock: ${movement.stockBefore} → ${movement.stockAfter} ${movement.unit ?? "pcs"}'
+            : AppUtils.formatDateTime(movement.date),
+        style: theme.textTheme.bodyMedium,
+      ),
       trailing: Text(
-        '${isIn ? '+' : '-'}${movement.quantity}',
+        '${isIn ? '+' : '-'}${movement.quantity} ${movement.unit ?? "pcs"}',
         style: TextStyle(color: color, fontWeight: FontWeight.w700),
       ),
     );

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/constants/app_constants.dart';
+import '../../data/api_service.dart';
 
 /// Settings screen: theme, threshold, currency, notifications
 class SettingsScreen extends StatelessWidget {
@@ -11,7 +12,6 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
-    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -19,7 +19,7 @@ class SettingsScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           // ---- Appearance ----
-          _SectionLabel(title: 'Appearance'),
+          const _SectionLabel(title: 'Appearance'),
           Card(
             child: Column(
               children: [
@@ -45,7 +45,7 @@ class SettingsScreen extends StatelessWidget {
                   value: settings.themeMode == ThemeMode.dark,
                   onChanged: (v) => settings.setThemeMode(
                       v ? ThemeMode.dark : ThemeMode.light),
-                  activeColor: AppColors.primary,
+                  activeThumbColor: AppColors.primary,
                 ),
               ],
             ),
@@ -53,7 +53,7 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 12),
 
           // ---- Inventory ----
-          _SectionLabel(title: 'Inventory'),
+          const _SectionLabel(title: 'Inventory'),
           Card(
             child: Column(
               children: [
@@ -114,7 +114,7 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 12),
 
           // ---- Notifications ----
-          _SectionLabel(title: 'Notifications'),
+          const _SectionLabel(title: 'Notifications'),
           Card(
             child: SwitchListTile(
               secondary: Container(
@@ -131,13 +131,34 @@ class SettingsScreen extends StatelessWidget {
               subtitle: const Text('Low stock and activity alerts'),
               value: settings.notificationsEnabled,
               onChanged: settings.toggleNotifications,
-              activeColor: AppColors.primary,
+              activeThumbColor: AppColors.primary,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // ---- Server Connection ----
+          const _SectionLabel(title: 'Server Connection'),
+          Card(
+            child: ListTile(
+              leading: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.teal.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.dns_outlined, color: Colors.teal, size: 20),
+              ),
+              title: const Text('API Base URL'),
+              subtitle: Text(ApiService().baseUrl),
+              trailing: const Icon(Icons.edit_outlined, size: 18, color: AppColors.grey500),
+              onTap: () => _showServerConfig(context),
             ),
           ),
           const SizedBox(height: 12),
 
           // ---- About ----
-          _SectionLabel(title: 'About'),
+          const _SectionLabel(title: 'About'),
           Card(
             child: Column(
               children: [
@@ -153,9 +174,9 @@ class SettingsScreen extends StatelessWidget {
                         color: AppColors.primary, size: 20),
                   ),
                   title: const Text('App Version'),
-                  trailing: Text(
+                  trailing: const Text(
                     AppConstants.appVersion,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: AppColors.grey500, fontWeight: FontWeight.w500),
                   ),
                 ),
@@ -223,6 +244,193 @@ class SettingsScreen extends StatelessWidget {
               )),
           const SizedBox(height: 16),
         ],
+      ),
+    );
+  }
+
+  void _showServerConfig(BuildContext context) {
+    final api = ApiService();
+    final urlCtrl = TextEditingController(text: api.baseUrl);
+    bool isTesting = false;
+    bool? testSuccess;
+    String? testMessage;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.dns_outlined, color: AppColors.primary),
+              SizedBox(width: 8),
+              Text('API Base URL', style: TextStyle(fontSize: 18)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Select a preset or enter your backend server address:',
+                  style: TextStyle(fontSize: 12, color: AppColors.grey500),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: urlCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Base URL',
+                    hintText: 'http://192.168.0.242:8080/api/v1',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    ActionChip(
+                      label: const Text('Wi-Fi (192.168.0.242)', style: TextStyle(fontSize: 11)),
+                      avatar: const Icon(Icons.wifi, size: 14),
+                      onPressed: () {
+                        setDialogState(() {
+                          urlCtrl.text = 'http://192.168.0.242:8080/api/v1';
+                          testSuccess = null;
+                          testMessage = null;
+                        });
+                      },
+                    ),
+                    ActionChip(
+                      label: const Text('Localhost (adb reverse)', style: TextStyle(fontSize: 11)),
+                      avatar: const Icon(Icons.usb, size: 14),
+                      onPressed: () {
+                        setDialogState(() {
+                          urlCtrl.text = 'http://localhost:8080/api/v1';
+                          testSuccess = null;
+                          testMessage = null;
+                        });
+                      },
+                    ),
+                    ActionChip(
+                      label: const Text('Emulator (10.0.2.2)', style: TextStyle(fontSize: 11)),
+                      avatar: const Icon(Icons.phone_android, size: 14),
+                      onPressed: () {
+                        setDialogState(() {
+                          urlCtrl.text = 'http://10.0.2.2:8080/api/v1';
+                          testSuccess = null;
+                          testMessage = null;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: isTesting
+                          ? null
+                          : () async {
+                              setDialogState(() {
+                                isTesting = true;
+                                testMessage = null;
+                              });
+                              final ok = await api.checkConnection(urlCtrl.text.trim());
+                              setDialogState(() {
+                                isTesting = false;
+                                testSuccess = ok;
+                                testMessage = ok
+                                    ? 'Connected successfully!'
+                                    : 'Cannot connect to server. Check IP and port.';
+                              });
+                            },
+                      icon: isTesting
+                          ? const SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.network_check, size: 14),
+                      label: const Text('Test Connection', style: TextStyle(fontSize: 12)),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton.icon(
+                      onPressed: isTesting
+                          ? null
+                          : () async {
+                              setDialogState(() {
+                                isTesting = true;
+                                testMessage = null;
+                              });
+                              final found = await api.findWorkingBaseUrl();
+                              setDialogState(() {
+                                isTesting = false;
+                                if (found != null) {
+                                  urlCtrl.text = found;
+                                  testSuccess = true;
+                                  testMessage = 'Auto-detected working server!';
+                                } else {
+                                  testSuccess = false;
+                                  testMessage = 'Could not find an active server automatically.';
+                                }
+                              });
+                            },
+                      icon: const Icon(Icons.auto_awesome, size: 14),
+                      label: const Text('Auto-Detect', style: TextStyle(fontSize: 12)),
+                    ),
+                  ],
+                ),
+                if (testMessage != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: (testSuccess == true ? AppColors.inStock : AppColors.danger)
+                          .withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          testSuccess == true ? Icons.check_circle : Icons.error,
+                          size: 14,
+                          color: testSuccess == true ? AppColors.inStock : AppColors.danger,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            testMessage!,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: testSuccess == true ? AppColors.inStock : AppColors.danger,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final newUrl = urlCtrl.text.trim();
+                if (newUrl.isNotEmpty) {
+                  await api.setBaseUrl(newUrl);
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: const Text('Save & Apply'),
+            ),
+          ],
+        ),
       ),
     );
   }

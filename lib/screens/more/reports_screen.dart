@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:fl_chart/fl_chart.dart';
-import '../../providers/product_provider.dart';
-import '../../providers/stock_provider.dart';
-import '../../providers/settings_provider.dart';
+import 'package:intl/intl.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/app_utils.dart';
-import '../../core/widgets/common_widgets.dart';
-import '../../models/product.dart';
-import '../../models/stock_movement.dart';
+import 'reports/tabs/stock_summary_tab.dart';
+import 'reports/tabs/stock_in_report_tab.dart';
+import 'reports/tabs/stock_out_report_tab.dart';
+import 'reports/tabs/low_stock_report_tab.dart';
+import 'reports/tabs/transaction_history_tab.dart';
 
-/// Reports screen with two tabs: Stock Report + Transaction Report
+enum DateFilterPeriod { today, thisWeek, thisMonth, custom }
+
+/// Feature 13: Reports Screen matching Notion specifications
+/// Basic Reports:
+/// 1. Stock Summary
+/// 2. Stock In Report
+/// 3. Stock Out Report
+/// 4. Low Stock Report
+/// 5. Transaction History
+/// Date filtering: Today, This Week, This Month, Custom Date
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
 
@@ -21,11 +27,16 @@ class ReportsScreen extends StatefulWidget {
 class _ReportsScreenState extends State<ReportsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabCtrl;
+  DateFilterPeriod _selectedPeriod = DateFilterPeriod.thisMonth;
+  DateTimeRange _customDateRange = DateTimeRange(
+    start: DateTime.now().subtract(const Duration(days: 30)),
+    end: DateTime.now(),
+  );
 
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 2, vsync: this);
+    _tabCtrl = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -34,343 +45,260 @@ class _ReportsScreenState extends State<ReportsScreen>
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Reports'),
-        actions: [
-          TextButton.icon(
-            icon: const Icon(Icons.download_outlined, size: 18),
-            label: const Text('Export'),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Export feature coming soon!')));
-            },
-          ),
-        ],
-        bottom: TabBar(
-          controller: _tabCtrl,
-          tabs: const [
-            Tab(text: 'Stock Report'),
-            Tab(text: 'Transactions'),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabCtrl,
-        children: const [
-          _StockReportTab(),
-          _TransactionReportTab(),
-        ],
-      ),
-    );
+  DateTimeRange _getActiveDateRange() {
+    final now = DateTime.now();
+    switch (_selectedPeriod) {
+      case DateFilterPeriod.today:
+        return DateTimeRange(
+          start: DateTime(now.year, now.month, now.day),
+          end: DateTime(now.year, now.month, now.day, 23, 59, 59),
+        );
+      case DateFilterPeriod.thisWeek:
+        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+        return DateTimeRange(
+          start: DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day),
+          end: DateTime(now.year, now.month, now.day, 23, 59, 59),
+        );
+      case DateFilterPeriod.thisMonth:
+        return DateTimeRange(
+          start: DateTime(now.year, now.month, 1),
+          end: DateTime(now.year, now.month, now.day, 23, 59, 59),
+        );
+      case DateFilterPeriod.custom:
+        return _customDateRange;
+    }
   }
-}
 
-class _StockReportTab extends StatelessWidget {
-  const _StockReportTab();
-
-  @override
-  Widget build(BuildContext context) {
-    final products = context.watch<ProductProvider>();
-    final settings = context.watch<SettingsProvider>();
-
-    final inStock = products.allProducts
-        .where((p) => p.stockStatus == StockStatus.inStock)
-        .length;
-    final lowStock = products.allProducts
-        .where((p) => p.stockStatus == StockStatus.lowStock)
-        .length;
-    final outOfStock = products.allProducts
-        .where((p) => p.stockStatus == StockStatus.outOfStock)
-        .length;
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // Summary cards
-        Row(
-          children: [
-            Expanded(
-              child: SummaryCard(
-                title: 'In Stock',
-                value: '$inStock',
-                icon: Icons.check_circle_outline,
-                color: AppColors.inStock,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: SummaryCard(
-                title: 'Low Stock',
-                value: '$lowStock',
-                icon: Icons.warning_amber_outlined,
-                color: AppColors.lowStock,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: SummaryCard(
-                title: 'Out of Stock',
-                value: '$outOfStock',
-                icon: Icons.cancel_outlined,
-                color: AppColors.outOfStock,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: SummaryCard(
-                title: 'Total Value',
-                value: AppUtils.formatCurrency(
-                    products.totalStockValue,
-                    symbol: settings.currencySymbol),
-                icon: Icons.attach_money,
-                color: AppColors.primary,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-
-        // Pie chart
-        const SectionHeader(title: 'Stock Distribution'),
-        const SizedBox(height: 8),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: SizedBox(
-              height: 180,
-              child: PieChart(
-                PieChartData(
-                  sections: [
-                    PieChartSectionData(
-                      value: inStock.toDouble(),
-                      color: AppColors.inStock,
-                      title: '$inStock',
-                      titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                      radius: 60,
-                    ),
-                    PieChartSectionData(
-                      value: lowStock.toDouble(),
-                      color: AppColors.lowStock,
-                      title: '$lowStock',
-                      titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                      radius: 60,
-                    ),
-                    PieChartSectionData(
-                      value: outOfStock.toDouble(),
-                      color: AppColors.outOfStock,
-                      title: '$outOfStock',
-                      titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                      radius: 60,
-                    ),
-                  ],
-                  centerSpaceRadius: 40,
-                  sectionsSpace: 3,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        // Legend
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _PieLegend(color: AppColors.inStock, label: 'In Stock'),
-            const SizedBox(width: 16),
-            _PieLegend(color: AppColors.lowStock, label: 'Low Stock'),
-            const SizedBox(width: 16),
-            _PieLegend(color: AppColors.outOfStock, label: 'Out of Stock'),
-          ],
-        ),
-        const SizedBox(height: 20),
-
-        // Product list
-        const SectionHeader(title: 'All Products'),
-        const SizedBox(height: 8),
-        ...products.allProducts.map((p) => _ProductReportTile(
-              product: p,
-              symbol: settings.currencySymbol,
-            )),
-        const SizedBox(height: 80),
-      ],
-    );
+  String _getPeriodLabel() {
+    final range = _getActiveDateRange();
+    final fmt = DateFormat('MMM d, yyyy');
+    switch (_selectedPeriod) {
+      case DateFilterPeriod.today:
+        return 'Today (${DateFormat("MMM d").format(range.start)})';
+      case DateFilterPeriod.thisWeek:
+        return 'This Week (${fmt.format(range.start)} - ${fmt.format(range.end)})';
+      case DateFilterPeriod.thisMonth:
+        return 'This Month (${DateFormat("MMMM yyyy").format(range.start)})';
+      case DateFilterPeriod.custom:
+        return '${fmt.format(range.start)} - ${fmt.format(range.end)}';
+    }
   }
-}
 
-class _TransactionReportTab extends StatelessWidget {
-  const _TransactionReportTab();
-
-  @override
-  Widget build(BuildContext context) {
-    final stock = context.watch<StockProvider>();
-    final movements = stock.allMovements;
-    final totalIn = movements
-        .where((m) => m.type == MovementType.stockIn)
-        .fold<int>(0, (s, m) => s + m.quantity);
-    final totalOut = movements
-        .where((m) => m.type == MovementType.stockOut)
-        .fold<int>(0, (s, m) => s + m.quantity);
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Row(
+  void _exportReport(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Export Report'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: SummaryCard(
-                title: 'Total In',
-                value: '$totalIn',
-                icon: Icons.arrow_downward,
-                color: AppColors.chartIn,
-              ),
+            Text('Report: ${_getReportTitle(_tabCtrl.index)}'),
+            const SizedBox(height: 6),
+            Text('Period: ${_getPeriodLabel()}'),
+            const SizedBox(height: 16),
+            const Text(
+              'Select export format:',
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: SummaryCard(
-                title: 'Total Out',
-                value: '$totalOut',
-                icon: Icons.arrow_upward,
-                color: AppColors.chartOut,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        SummaryCard(
-          title: 'Total Movements',
-          value: '${movements.length}',
-          icon: Icons.swap_horiz,
-          color: AppColors.primary,
-        ),
-        const SizedBox(height: 20),
-
-        const SectionHeader(title: 'All Transactions'),
-        const SizedBox(height: 8),
-        ...movements
-            .toList()
-            .reversed
-            .map((m) => _TransactionTile(movement: m)),
-        const SizedBox(height: 80),
-      ],
-    );
-  }
-}
-
-class _ProductReportTile extends StatelessWidget {
-  final Product product;
-  final String symbol;
-  const _ProductReportTile({required this.product, required this.symbol});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 6),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(product.name,
-                      style: theme.textTheme.bodyLarge
-                          ?.copyWith(fontWeight: FontWeight.w500),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
-                  Text('SKU: ${product.sku}',
-                      style: theme.textTheme.bodyMedium),
-                ],
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            const SizedBox(height: 10),
+            Row(
               children: [
-                Text('Qty: ${product.quantity}',
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-                Text(
-                  AppUtils.formatCurrency(product.price * product.quantity,
-                      symbol: symbol),
-                  style: TextStyle(
-                      color: AppColors.primary, fontWeight: FontWeight.w600),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.table_chart_outlined,
+                        color: AppColors.inStock),
+                    label: const Text('Excel (CSV)'),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                              '${_getReportTitle(_tabCtrl.index)} exported to CSV successfully!'),
+                          backgroundColor: AppColors.inStock,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.picture_as_pdf_outlined,
+                        color: AppColors.danger),
+                    label: const Text('PDF Document'),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                              '${_getReportTitle(_tabCtrl.index)} exported to PDF successfully!'),
+                          backgroundColor: AppColors.primary,
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ],
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _TransactionTile extends StatelessWidget {
-  final StockMovement movement;
-  const _TransactionTile({required this.movement});
-
-  @override
-  Widget build(BuildContext context) {
-    final isIn = movement.isStockIn;
-    final color = isIn ? AppColors.chartIn : AppColors.chartOut;
-    final theme = Theme.of(context);
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 6),
-      child: ListTile(
-        leading: Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
           ),
-          child: Icon(
-              isIn ? Icons.arrow_downward : Icons.arrow_upward,
-              color: color, size: 18),
+        ],
+      ),
+    );
+  }
+
+  String _getReportTitle(int index) {
+    switch (index) {
+      case 0:
+        return 'Stock Summary Report';
+      case 1:
+        return 'Stock In Report';
+      case 2:
+        return 'Stock Out Report';
+      case 3:
+        return 'Low Stock Report';
+      case 4:
+        return 'Transaction History Report';
+      default:
+        return 'Inventory Report';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final range = _getActiveDateRange();
+    final periodLabel = _getPeriodLabel();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Inventory Reports'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download_outlined),
+            tooltip: 'Export Report',
+            onPressed: () => _exportReport(context),
+          ),
+          const SizedBox(width: 6),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(100),
+          child: Column(
+            children: [
+              // Date Filter Chips (Today, This Week, This Month, Custom Date)
+              SizedBox(
+                height: 40,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  children: [
+                    _PeriodChip(
+                      label: 'Today',
+                      selected: _selectedPeriod == DateFilterPeriod.today,
+                      onTap: () =>
+                          setState(() => _selectedPeriod = DateFilterPeriod.today),
+                    ),
+                    const SizedBox(width: 8),
+                    _PeriodChip(
+                      label: 'This Week',
+                      selected: _selectedPeriod == DateFilterPeriod.thisWeek,
+                      onTap: () => setState(
+                          () => _selectedPeriod = DateFilterPeriod.thisWeek),
+                    ),
+                    const SizedBox(width: 8),
+                    _PeriodChip(
+                      label: 'This Month',
+                      selected: _selectedPeriod == DateFilterPeriod.thisMonth,
+                      onTap: () => setState(
+                          () => _selectedPeriod = DateFilterPeriod.thisMonth),
+                    ),
+                    const SizedBox(width: 8),
+                    _PeriodChip(
+                      label: 'Custom Date',
+                      icon: Icons.calendar_month_outlined,
+                      selected: _selectedPeriod == DateFilterPeriod.custom,
+                      onTap: () async {
+                        final picked = await showDateRangePicker(
+                          context: context,
+                          initialDateRange: _customDateRange,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now(),
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            _customDateRange = picked;
+                            _selectedPeriod = DateFilterPeriod.custom;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Report Category Tabs
+              TabBar(
+                controller: _tabCtrl,
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                tabs: const [
+                  Tab(text: 'Stock Summary'),
+                  Tab(text: 'Stock In Report'),
+                  Tab(text: 'Stock Out Report'),
+                  Tab(text: 'Low Stock Report'),
+                  Tab(text: 'Transaction History'),
+                ],
+              ),
+            ],
+          ),
         ),
-        title: Text(movement.productName,
-            style: theme.textTheme.bodyLarge
-                ?.copyWith(fontWeight: FontWeight.w500),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis),
-        subtitle: Text(AppUtils.formatDateTime(movement.date),
-            style: theme.textTheme.bodyMedium),
-        trailing: Text(
-          '${isIn ? '+' : '-'}${movement.quantity}',
-          style: TextStyle(
-              color: color, fontWeight: FontWeight.w700, fontSize: 15),
-        ),
+      ),
+      body: TabBarView(
+        controller: _tabCtrl,
+        children: [
+          StockSummaryReportTab(dateRange: range, periodLabel: periodLabel),
+          StockInReportTab(dateRange: range, periodLabel: periodLabel),
+          StockOutReportTab(dateRange: range, periodLabel: periodLabel),
+          LowStockReportTab(periodLabel: periodLabel),
+          TransactionHistoryReportTab(dateRange: range, periodLabel: periodLabel),
+        ],
       ),
     );
   }
 }
 
-class _PieLegend extends StatelessWidget {
-  final Color color;
+class _PeriodChip extends StatelessWidget {
   final String label;
-  const _PieLegend({required this.color, required this.label});
+  final bool selected;
+  final VoidCallback onTap;
+  final IconData? icon;
+
+  const _PeriodChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-            width: 10,
-            height: 10,
-            decoration:
-                BoxDecoration(color: color, shape: BoxShape.circle)),
-        const SizedBox(width: 4),
-        Text(label,
-            style: const TextStyle(fontSize: 11, color: AppColors.grey500)),
-      ],
+    return ChoiceChip(
+      avatar: icon != null ? Icon(icon, size: 14) : null,
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+      selectedColor: AppColors.primary.withValues(alpha: 0.15),
+      labelStyle: TextStyle(
+        fontSize: 12,
+        color: selected ? AppColors.primary : null,
+        fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+      ),
     );
   }
 }

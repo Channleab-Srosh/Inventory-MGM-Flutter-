@@ -45,7 +45,7 @@ class ProductCard extends StatelessWidget {
                           child: Image.network(product.imageUrl!,
                               fit: BoxFit.cover),
                         )
-                      : Icon(Icons.inventory_2_outlined,
+                      : const Icon(Icons.inventory_2_outlined,
                           color: AppColors.primary, size: 28),
                 ),
               ),
@@ -77,10 +77,14 @@ class ProductCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        _InfoBadge(label: categoryName, icon: Icons.label_outline),
-                        const SizedBox(width: 8),
+                        if (categoryName.isNotEmpty) ...[
+                          _InfoBadge(label: categoryName, icon: Icons.label_outline),
+                          const SizedBox(width: 8),
+  
+                        ],
+
                         _InfoBadge(
-                          label: 'Qty: ${AppUtils.formatNumber(product.quantity)}',
+                          label: 'Qty: ${AppUtils.formatNumber(product.quantity)} ${product.unit}',
                           icon: Icons.inventory_outlined,
                         ),
                         const Spacer(),

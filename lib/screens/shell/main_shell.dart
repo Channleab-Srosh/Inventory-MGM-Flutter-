@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-/// Bottom navigation shell with 5 tabs
+/// Bottom navigation shell with 5 main tabs
 class MainShell extends StatelessWidget {
   final Widget child;
   const MainShell({super.key, required this.child});
@@ -32,10 +32,10 @@ class MainShell extends StatelessWidget {
       path: '/reports',
     ),
     _TabItem(
-      icon: Icons.person_outline,
-      activeIcon: Icons.person,
-      label: 'Profile',
-      path: '/profile',
+      icon: Icons.grid_view_outlined,
+      activeIcon: Icons.grid_view_rounded,
+      label: 'More',
+      path: '/more',
     ),
   ];
 
@@ -44,6 +44,7 @@ class MainShell extends StatelessWidget {
     for (int i = 0; i < _tabs.length; i++) {
       if (location.startsWith(_tabs[i].path)) return i;
     }
+    if (location.startsWith('/profile')) return 4;
     return 0;
   }
 

@@ -104,7 +104,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'Standard staff account permissions will be granted. Admin accounts must be created by an existing administrator.',
+                              'Standard staff permissions: View products & suppliers, perform Stock In & Stock Out. Staff accounts cannot add/edit/delete products or suppliers, view categories, or manage users.',
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 fontSize: 12,
                                 color: AppColors.primaryDark,

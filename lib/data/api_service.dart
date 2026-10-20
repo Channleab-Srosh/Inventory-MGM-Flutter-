@@ -1,0 +1,748 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import '../core/constants/app_constants.dart';
+
+/// Custom API Exception with HTTP status and server error details
+class ApiException implements Exception {
+  final String message;
+  final int statusCode;
+  final List<dynamic>? errors;
+
+  ApiException(this.message, {this.statusCode = 0, this.errors});
+
+  @override
+  String toString() => message;
+}
+
+/// Centralized API Service for communicating with the backend REST endpoints
+class ApiService {
+  static final ApiService _instance = ApiService._internal();
+  factory ApiService() => _instance;
+  ApiService._internal();
+
+  static const String _prefTokenKey = 'auth_token';
+  static const String _prefBaseUrlKey = 'api_base_url';
+
+  String _baseUrl = AppConstants.defaultBaseUrl;
+  String? _token;
+
+  String get baseUrl => _baseUrl;
+  String? get token => _token;
+  bool get hasToken => _token != null && _token!.isNotEmpty;
+
+  /// Initialize service from local storage
+  Future<void> init() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_prefTokenKey);
+      final savedBaseUrl = prefs.getString(_prefBaseUrlKey);
+      if (savedBaseUrl != null && savedBaseUrl.isNotEmpty) {
+        _baseUrl = savedBaseUrl;
+      }
+    } catch (_) {}
+  }
+
+  /// Update JWT token
+  Future<void> setToken(String? token) async {
+    _token = token;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (token != null) {
+        await prefs.setString(_prefTokenKey, token);
+      } else {
+        await prefs.remove(_prefTokenKey);
+      }
+    } catch (_) {}
+  }
+
+  /// Clear token on logout
+  Future<void> clearToken() async {
+    await setToken(null);
+  }
+
+  /// Update base URL (e.g. for switching between localhost, emulator, or production)
+  Future<void> setBaseUrl(String url) async {
+    _baseUrl = url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_prefBaseUrlKey, _baseUrl);
+    } catch (_) {}
+  }
+
+  Map<String, String> _buildHeaders() {
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+    if (_token != null && _token!.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $_token';
+    }
+    return headers;
+  }
+
+  dynamic _processResponse(http.Response response) {
+    dynamic jsonBody;
+    try {
+      jsonBody = jsonDecode(utf8.decode(response.bodyBytes));
+    } catch (_) {
+      jsonBody = null;
+    }
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (jsonBody is Map<String, dynamic> && jsonBody.containsKey('data')) {
+        return jsonBody['data'];
+      }
+      return jsonBody;
+    }
+
+    // Extract error message
+    String errorMessage = 'An error occurred (HTTP ${response.statusCode})';
+    List<dynamic>? errors;
+
+    if (jsonBody is Map<String, dynamic>) {
+      if (jsonBody['errors'] is List && (jsonBody['errors'] as List).isNotEmpty) {
+        errors = jsonBody['errors'] as List;
+        final errorDetails = errors
+            .map((e) => e is Map ? (e['message'] ?? e['field'] ?? '') : e.toString())
+            .where((s) => s.isNotEmpty)
+            .join('; ');
+        if (errorDetails.isNotEmpty) {
+          errorMessage = errorDetails;
+        } else if (jsonBody['message'] != null) {
+          errorMessage = jsonBody['message'].toString();
+        }
+      } else if (jsonBody['message'] != null && jsonBody['message'].toString().isNotEmpty) {
+        errorMessage = jsonBody['message'].toString();
+      }
+    }
+
+    throw ApiException(errorMessage, statusCode: response.statusCode, errors: errors);
+  }
+
+  /// Check if an exception is a network unreachable / connection refused error
+  bool _isConnectionError(Object e) {
+    final s = e.toString().toLowerCase();
+    return s.contains('socketexception') ||
+        s.contains('connection refused') ||
+        s.contains('clientexception') ||
+        s.contains('failed host lookup') ||
+        s.contains('network is unreachable') ||
+        s.contains('connection reset') ||
+        s.contains('os error');
+  }
+
+  /// Live connection check against candidate base URL
+  Future<bool> checkConnection([String? candidateUrl]) async {
+    final target = (candidateUrl ?? _baseUrl).trim();
+    try {
+      final cleanUrl = target.endsWith('/') ? target.substring(0, target.length - 1) : target;
+      final uri = Uri.parse('$cleanUrl/auth/login');
+      final res = await http.get(uri).timeout(const Duration(seconds: 2));
+      return res.statusCode > 0 && res.statusCode < 500;
+    } catch (_) {
+      try {
+        final cleanUrl = target.endsWith('/') ? target.substring(0, target.length - 1) : target;
+        final uri = Uri.parse('$cleanUrl/categories');
+        final res = await http.get(uri).timeout(const Duration(seconds: 2));
+        return res.statusCode > 0 && res.statusCode < 500;
+      } catch (_) {
+        return false;
+      }
+    }
+  }
+
+  /// Probe known candidate URLs and automatically switch to the reachable one
+  Future<String?> findWorkingBaseUrl() async {
+    final candidates = [
+      _baseUrl,
+      ...AppConstants.candidateBaseUrls,
+    ];
+
+    for (final url in candidates.toSet()) {
+      if (await checkConnection(url)) {
+        if (url != _baseUrl) {
+          await setBaseUrl(url);
+        }
+        return url;
+      }
+    }
+    return null;
+  }
+
+  /// Execute HTTP request with automatic fallback candidate probing on connection failure
+  Future<dynamic> _executeWithFallback(
+    Future<http.Response> Function(String base) requestFn,
+  ) async {
+    try {
+      final response = await requestFn(_baseUrl);
+      return _processResponse(response);
+    } catch (e) {
+      if (_isConnectionError(e)) {
+        final working = await findWorkingBaseUrl();
+        if (working != null && working != _baseUrl) {
+          final retryResponse = await requestFn(working);
+          return _processResponse(retryResponse);
+        }
+      }
+      rethrow;
+    }
+  }
+
+  // Generic HTTP helpers
+  Future<dynamic> get(String endpoint, {Map<String, dynamic>? queryParams}) async {
+    return _executeWithFallback((base) {
+      Uri uri = Uri.parse('$base$endpoint');
+      if (queryParams != null && queryParams.isNotEmpty) {
+        final cleanParams = <String, String>{};
+        queryParams.forEach((key, val) {
+          if (val != null) {
+            cleanParams[key] = val.toString();
+          }
+        });
+        uri = uri.replace(queryParameters: cleanParams);
+      }
+      return http.get(uri, headers: _buildHeaders());
+    });
+  }
+
+  Future<dynamic> post(String endpoint, {dynamic body}) async {
+    return _executeWithFallback((base) {
+      final uri = Uri.parse('$base$endpoint');
+      return http.post(
+        uri,
+        headers: _buildHeaders(),
+        body: body != null ? jsonEncode(body) : null,
+      );
+    });
+  }
+
+  Future<dynamic> put(String endpoint, {dynamic body}) async {
+    return _executeWithFallback((base) {
+      final uri = Uri.parse('$base$endpoint');
+      return http.put(
+        uri,
+        headers: _buildHeaders(),
+        body: body != null ? jsonEncode(body) : null,
+      );
+    });
+  }
+
+  Future<dynamic> delete(String endpoint) async {
+    return _executeWithFallback((base) {
+      final uri = Uri.parse('$base$endpoint');
+      return http.delete(uri, headers: _buildHeaders());
+    });
+  }
+
+  // Helper to normalize transaction type for backend enum TransactionType (STOCK_IN, STOCK_OUT)
+  String? _normalizeTransactionType(dynamic type) {
+    if (type == null) return null;
+    final s = type.toString().toUpperCase().trim();
+    if (s.isEmpty) return null;
+    if (s.contains('IN')) return 'STOCK_IN';
+    if (s.contains('OUT')) return 'STOCK_OUT';
+    return s;
+  }
+
+  // Helper to normalize user role for backend enum Role (ADMIN, STAFF)
+  String _normalizeRole(String role) {
+    final upper = role.toUpperCase().replaceAll('ROLE_', '').trim();
+    if (upper == 'ADMIN') return 'ADMIN';
+    return 'STAFF';
+  }
+
+  // Helper to parse numeric Long IDs safely for Spring Boot backend
+  int? _parseNumericId(dynamic id) {
+    if (id == null) return null;
+    if (id is int) return id;
+    return int.tryParse(id.toString().trim());
+  }
+
+  // ==========================================
+  // AUTHENTICATION ENDPOINTS
+  // ==========================================
+
+  /// Login: POST /auth/login
+  Future<Map<String, dynamic>> login(String username, String password) async {
+    final data = await post('/auth/login', body: {
+      'username': username,
+      'password': password,
+    });
+    if (data is Map<String, dynamic> && data['token'] != null) {
+      await setToken(data['token'].toString());
+    }
+    return data as Map<String, dynamic>;
+  }
+
+  /// Get current user profile: GET /auth/me
+  Future<Map<String, dynamic>> getCurrentUser() async {
+    final data = await get('/auth/me');
+    return data as Map<String, dynamic>;
+  }
+
+  /// Forgot password: POST /auth/forgot-password
+  Future<void> forgotPassword(String email) async {
+    await post('/auth/forgot-password', body: {'email': email});
+  }
+
+  /// Reset password: POST /auth/reset-password
+  Future<void> resetPassword(String email, String otp, String newPassword) async {
+    await post('/auth/reset-password', body: {
+      'email': email,
+      'otp': otp,
+      'newPassword': newPassword,
+    });
+  }
+
+  /// Change password: POST /auth/change-password
+  Future<void> changePassword(String currentPassword, String newPassword) async {
+    await post('/auth/change-password', body: {
+      'currentPassword': currentPassword,
+      'newPassword': newPassword,
+    });
+  }
+
+  // ==========================================
+  // CATEGORY ENDPOINTS
+  // ==========================================
+
+  /// Get categories: GET /categories
+  Future<List<dynamic>> getCategories({String? search, int page = 0, int size = 100}) async {
+    final data = await get('/categories', queryParams: {
+      if (search != null && search.isNotEmpty) 'search': search,
+      'page': page,
+      'size': size,
+      'sort': 'name,asc',
+    });
+    if (data is Map<String, dynamic> && data['content'] is List) {
+      return data['content'] as List<dynamic>;
+    }
+    return [];
+  }
+
+  /// Get category by id: GET /categories/{id}
+  Future<Map<String, dynamic>> getCategoryById(dynamic id) async {
+    final data = await get('/categories/$id');
+    return data as Map<String, dynamic>;
+  }
+
+  /// Create category: POST /categories
+  Future<Map<String, dynamic>> createCategory(String name, String? description) async {
+    final data = await post('/categories', body: {
+      'name': name,
+      if (description != null && description.isNotEmpty) 'description': description,
+    });
+    return data as Map<String, dynamic>;
+  }
+
+  /// Update category: PUT /categories/{id}
+  Future<Map<String, dynamic>> updateCategory(dynamic id, String name, String? description) async {
+    final data = await put('/categories/$id', body: {
+      'name': name,
+      if (description != null && description.isNotEmpty) 'description': description,
+    });
+    return data as Map<String, dynamic>;
+  }
+
+  /// Delete category: DELETE /categories/{id}
+  Future<void> deleteCategory(dynamic id) async {
+    await delete('/categories/$id');
+  }
+
+  // ==========================================
+  // SUPPLIER ENDPOINTS
+  // ==========================================
+
+  /// Get suppliers: GET /suppliers
+  Future<List<dynamic>> getSuppliers({String? search, int page = 0, int size = 100}) async {
+    final data = await get('/suppliers', queryParams: {
+      if (search != null && search.isNotEmpty) 'search': search,
+      'page': page,
+      'size': size,
+      'sort': 'name,asc',
+    });
+    if (data is Map<String, dynamic> && data['content'] is List) {
+      return data['content'] as List<dynamic>;
+    }
+    return [];
+  }
+
+  /// Get supplier by id: GET /suppliers/{id}
+  Future<Map<String, dynamic>> getSupplierById(dynamic id) async {
+    final data = await get('/suppliers/$id');
+    return data as Map<String, dynamic>;
+  }
+
+  /// Create supplier: POST /suppliers
+  Future<Map<String, dynamic>> createSupplier({
+    required String name,
+    required String phone,
+    String? email,
+    String? address,
+  }) async {
+    final data = await post('/suppliers', body: {
+      'name': name,
+      'phone': phone,
+      if (email != null && email.isNotEmpty) 'email': email,
+      if (address != null && address.isNotEmpty) 'address': address,
+    });
+    return data as Map<String, dynamic>;
+  }
+
+  /// Update supplier: PUT /suppliers/{id}
+  Future<Map<String, dynamic>> updateSupplier(
+    dynamic id, {
+    required String name,
+    required String phone,
+    String? email,
+    String? address,
+  }) async {
+    final data = await put('/suppliers/$id', body: {
+      'name': name,
+      'phone': phone,
+      if (email != null && email.isNotEmpty) 'email': email,
+      if (address != null && address.isNotEmpty) 'address': address,
+    });
+    return data as Map<String, dynamic>;
+  }
+
+  /// Delete supplier: DELETE /suppliers/{id}
+  Future<void> deleteSupplier(dynamic id) async {
+    await delete('/suppliers/$id');
+  }
+
+  // ==========================================
+  // PRODUCT ENDPOINTS
+  // ==========================================
+
+  /// Get products: GET /products
+  Future<List<dynamic>> getProducts({
+    String? keyword,
+    dynamic categoryId,
+    dynamic supplierId,
+    bool? active,
+    int page = 0,
+    int size = 100,
+  }) async {
+    final parsedCatId = _parseNumericId(categoryId);
+    final parsedSupId = _parseNumericId(supplierId);
+
+    final data = await get('/products', queryParams: {
+      if (keyword != null && keyword.isNotEmpty) 'keyword': keyword,
+      if (parsedCatId != null) 'categoryId': parsedCatId,
+      if (parsedSupId != null) 'supplierId': parsedSupId,
+      if (active != null) 'active': active,
+      'page': page,
+      'size': size,
+      'sort': 'id,asc',
+    });
+    if (data is Map<String, dynamic> && data['content'] is List) {
+      return data['content'] as List<dynamic>;
+    }
+    return [];
+  }
+
+  /// Get product by id: GET /products/{id}
+  Future<Map<String, dynamic>> getProductById(dynamic id) async {
+    final data = await get('/products/$id');
+    return data as Map<String, dynamic>;
+  }
+
+  /// Get product by sku: GET /products/sku/{sku}
+  Future<Map<String, dynamic>> getProductBySku(String sku) async {
+    final data = await get('/products/sku/$sku');
+    return data as Map<String, dynamic>;
+  }
+
+  /// Create product: POST /products
+  Future<Map<String, dynamic>> createProduct({
+    required String sku,
+    required String name,
+    String? description,
+    required dynamic categoryId,
+    dynamic supplierId,
+    required String unitOfMeasure,
+    required double unitPrice,
+    required int minimumStock,
+    bool active = true,
+  }) async {
+    final parsedCatId = _parseNumericId(categoryId);
+    final parsedSupId = _parseNumericId(supplierId);
+
+    final data = await post('/products', body: {
+      'sku': sku,
+      'name': name,
+      if (description != null && description.isNotEmpty) 'description': description,
+      'categoryId': parsedCatId,
+      'supplierId': parsedSupId,
+      'unitOfMeasure': unitOfMeasure.toUpperCase(),
+      'unitPrice': unitPrice,
+      'minimumStock': minimumStock,
+      'active': active,
+    });
+    return data as Map<String, dynamic>;
+  }
+
+  /// Update product: PUT /products/{id}
+  Future<Map<String, dynamic>> updateProduct(
+    dynamic id, {
+    required String sku,
+    required String name,
+    String? description,
+    required dynamic categoryId,
+    dynamic supplierId,
+    required String unitOfMeasure,
+    required double unitPrice,
+    required int minimumStock,
+    bool active = true,
+  }) async {
+    final parsedCatId = _parseNumericId(categoryId);
+    final parsedSupId = _parseNumericId(supplierId);
+
+    final data = await put('/products/$id', body: {
+      'sku': sku,
+      'name': name,
+      if (description != null && description.isNotEmpty) 'description': description,
+      'categoryId': parsedCatId,
+      'supplierId': parsedSupId,
+      'unitOfMeasure': unitOfMeasure.toUpperCase(),
+      'unitPrice': unitPrice,
+      'minimumStock': minimumStock,
+      'active': active,
+    });
+    return data as Map<String, dynamic>;
+  }
+
+  /// Update product status: PUT /products/{id}/status
+  Future<Map<String, dynamic>> updateProductStatus(dynamic id, bool active) async {
+    final data = await put('/products/$id/status', body: {'active': active});
+    return data as Map<String, dynamic>;
+  }
+
+  /// Delete product: DELETE /products/{id}
+  Future<void> deleteProduct(dynamic id) async {
+    await delete('/products/$id');
+  }
+
+  // ==========================================
+  // STOCK ENDPOINTS
+  // ==========================================
+
+  /// Stock in: POST /stock/in
+  Future<Map<String, dynamic>> stockIn({
+    required dynamic productId,
+    required int quantity,
+    String? note,
+  }) async {
+    final pId = _parseNumericId(productId);
+    final cleanNote = note != null && note.isNotEmpty
+        ? (note.length > 255 ? note.substring(0, 255) : note)
+        : null;
+
+    final data = await post('/stock/in', body: {
+      'productId': pId,
+      'quantity': quantity,
+      if (cleanNote != null) 'note': cleanNote,
+    });
+    return data as Map<String, dynamic>;
+  }
+
+  /// Stock out: POST /stock/out
+  Future<Map<String, dynamic>> stockOut({
+    required dynamic productId,
+    required int quantity,
+    String? note,
+  }) async {
+    final pId = _parseNumericId(productId);
+    final cleanNote = note != null && note.isNotEmpty
+        ? (note.length > 255 ? note.substring(0, 255) : note)
+        : null;
+
+    final data = await post('/stock/out', body: {
+      'productId': pId,
+      'quantity': quantity,
+      if (cleanNote != null) 'note': cleanNote,
+    });
+    return data as Map<String, dynamic>;
+  }
+
+  /// Get stock transactions history: GET /stock/history
+  Future<List<dynamic>> getStockHistory({
+    dynamic productId,
+    dynamic type,
+    dynamic userId,
+    DateTime? fromDate,
+    DateTime? toDate,
+    int page = 0,
+    int size = 100,
+  }) async {
+    final parsedProdId = _parseNumericId(productId);
+    final parsedUserId = _parseNumericId(userId);
+    final normType = _normalizeTransactionType(type);
+
+    final data = await get('/stock/history', queryParams: {
+      if (parsedProdId != null) 'productId': parsedProdId,
+      if (normType != null && normType.isNotEmpty) 'type': normType,
+      if (parsedUserId != null) 'userId': parsedUserId,
+      if (fromDate != null) 'fromDate': fromDate.toUtc().toIso8601String(),
+      if (toDate != null) 'toDate': toDate.toUtc().toIso8601String(),
+      'page': page,
+      'size': size,
+      'sort': 'createdAt,desc',
+    });
+    if (data is Map<String, dynamic> && data['content'] is List) {
+      return data['content'] as List<dynamic>;
+    }
+    return [];
+  }
+
+  // ==========================================
+  // DASHBOARD ENDPOINTS
+  // ==========================================
+
+  /// Get dashboard KPI summary: GET /dashboard/summary
+  Future<Map<String, dynamic>> getDashboardSummary() async {
+    final data = await get('/dashboard/summary');
+    return data as Map<String, dynamic>;
+  }
+
+  /// Get low stock products: GET /dashboard/low-stock
+  Future<List<dynamic>> getLowStockProducts({int page = 0, int size = 100}) async {
+    final data = await get('/dashboard/low-stock', queryParams: {
+      'page': page,
+      'size': size,
+      'sort': 'stockQuantity,asc',
+    });
+    if (data is Map<String, dynamic> && data['content'] is List) {
+      return data['content'] as List<dynamic>;
+    }
+    return [];
+  }
+
+  // ==========================================
+  // USER MANAGEMENT ENDPOINTS (ADMIN ONLY)
+  // ==========================================
+
+  /// Get all users: GET /users
+  Future<List<dynamic>> getUsers({String? search, int page = 0, int size = 100}) async {
+    final data = await get('/users', queryParams: {
+      if (search != null && search.isNotEmpty) 'search': search,
+      'page': page,
+      'size': size,
+      'sort': 'id,asc',
+    });
+    if (data is Map<String, dynamic> && data['content'] is List) {
+      return data['content'] as List<dynamic>;
+    }
+    return [];
+  }
+
+  /// Create user: POST /users
+  Future<Map<String, dynamic>> createUser({
+    required String username,
+    required String email,
+    required String password,
+    required String fullName,
+    String? phone,
+    String role = 'STAFF',
+  }) async {
+    final data = await post('/users', body: {
+      'username': username,
+      'email': email,
+      'password': password,
+      'fullName': fullName,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
+      'role': _normalizeRole(role),
+    });
+    return data as Map<String, dynamic>;
+  }
+
+  /// Update user: PUT /users/{id}
+  Future<Map<String, dynamic>> updateUser(
+    dynamic id, {
+    required String email,
+    String? password,
+    required String fullName,
+    String? phone,
+    required String role,
+  }) async {
+    final data = await put('/users/$id', body: {
+      'email': email,
+      if (password != null && password.isNotEmpty) 'password': password,
+      'fullName': fullName,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
+      'role': _normalizeRole(role),
+    });
+    return data as Map<String, dynamic>;
+  }
+
+  /// Update user status: PUT /users/{id}/status
+  Future<Map<String, dynamic>> updateUserStatus(dynamic id, bool active) async {
+    final data = await put('/users/$id/status', body: {'active': active});
+    return data as Map<String, dynamic>;
+  }
+
+  // ==========================================
+  // REPORT ENDPOINTS
+  // ==========================================
+
+  /// Inventory report: GET /reports/inventory
+  Future<List<dynamic>> getInventoryReport({
+    String? keyword,
+    dynamic categoryId,
+    dynamic supplierId,
+    bool? active,
+    bool? lowStockOnly,
+    int page = 0,
+    int size = 100,
+  }) async {
+    final parsedCatId = _parseNumericId(categoryId);
+    final parsedSupId = _parseNumericId(supplierId);
+
+    final data = await get('/reports/inventory', queryParams: {
+      if (keyword != null && keyword.isNotEmpty) 'keyword': keyword,
+      if (parsedCatId != null) 'categoryId': parsedCatId,
+      if (parsedSupId != null) 'supplierId': parsedSupId,
+      if (active != null) 'active': active,
+      if (lowStockOnly != null) 'lowStockOnly': lowStockOnly,
+      'page': page,
+      'size': size,
+      'sort': 'id,asc',
+    });
+    if (data is Map<String, dynamic> && data['content'] is List) {
+      return data['content'] as List<dynamic>;
+    }
+    return [];
+  }
+
+  /// Stock transaction report: GET /reports/stock-transactions
+  Future<List<dynamic>> getStockTransactionReport({
+    dynamic productId,
+    dynamic type,
+    dynamic userId,
+    DateTime? fromDate,
+    DateTime? toDate,
+    int page = 0,
+    int size = 100,
+  }) async {
+    final parsedProdId = _parseNumericId(productId);
+    final parsedUserId = _parseNumericId(userId);
+    final normType = _normalizeTransactionType(type);
+
+    final data = await get('/reports/stock-transactions', queryParams: {
+      if (parsedProdId != null) 'productId': parsedProdId,
+      if (normType != null && normType.isNotEmpty) 'type': normType,
+      if (parsedUserId != null) 'userId': parsedUserId,
+      if (fromDate != null) 'fromDate': fromDate.toUtc().toIso8601String(),
+      if (toDate != null) 'toDate': toDate.toUtc().toIso8601String(),
+      'page': page,
+      'size': size,
+      'sort': 'createdAt,desc',
+    });
+    if (data is Map<String, dynamic> && data['content'] is List) {
+      return data['content'] as List<dynamic>;
+    }
+    return [];
+  }
+}
