@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-/// Feature 3: Standard reusable UI components
+/// Standard reusable UI components matching the modern pill & soft periwinkle design system
 
-/// 1. AppButton: Standard button with loading state, icons, and variants
+/// 1. AppButton: Standard button with full pill radius (999px), loading state, icons, and variants
 class AppButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -24,13 +24,16 @@ class AppButton extends StatelessWidget {
     this.isOutlined = false,
     this.backgroundColor,
     this.textColor,
-    this.height = 50,
+    this.height = 48,
     this.width = double.infinity,
   });
 
   @override
   Widget build(BuildContext context) {
     final effectiveWidth = width ?? double.infinity;
+    final primaryBg = backgroundColor ?? AppColors.primary;
+    final primaryFg = textColor ?? Colors.white;
+
     final content = isLoading
         ? SizedBox(
             height: 20,
@@ -38,7 +41,7 @@ class AppButton extends StatelessWidget {
             child: CircularProgressIndicator(
               strokeWidth: 2,
               valueColor: AlwaysStoppedAnimation<Color>(
-                isOutlined ? (textColor ?? AppColors.primary) : Colors.white,
+                isOutlined ? (textColor ?? AppColors.primaryDark) : Colors.white,
               ),
             ),
           )
@@ -55,9 +58,10 @@ class AppButton extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
                   color: isOutlined
-                      ? (textColor ?? AppColors.primary)
-                      : (textColor ?? Colors.white),
+                      ? (textColor ?? AppColors.primaryDark)
+                      : primaryFg,
                 ),
               ),
             ],
@@ -71,10 +75,11 @@ class AppButton extends StatelessWidget {
               onPressed: isLoading ? null : onPressed,
               style: OutlinedButton.styleFrom(
                 side: BorderSide(
-                  color: backgroundColor ?? AppColors.primary,
+                  color: backgroundColor ?? AppColors.border,
+                  width: 1.2,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppTheme.pillRadius),
                 ),
               ),
               child: content,
@@ -82,11 +87,11 @@ class AppButton extends StatelessWidget {
           : ElevatedButton(
               onPressed: isLoading ? null : onPressed,
               style: ElevatedButton.styleFrom(
-                backgroundColor: backgroundColor ?? AppColors.primary,
-                foregroundColor: textColor ?? Colors.white,
+                backgroundColor: primaryBg,
+                foregroundColor: primaryFg,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppTheme.pillRadius),
                 ),
               ),
               child: content,
@@ -95,7 +100,7 @@ class AppButton extends StatelessWidget {
   }
 }
 
-/// 2. AppTextField: Standard text form field with clean borders, icons, validation
+/// 2. AppTextField: Standard text form field with clean subtle borders, icons, validation
 class AppTextField extends StatelessWidget {
   final TextEditingController? controller;
   final String? label;
@@ -146,23 +151,30 @@ class AppTextField extends StatelessWidget {
       maxLines: maxLines,
       readOnly: readOnly,
       enabled: enabled,
+      style: const TextStyle(
+        fontSize: 14,
+        color: AppColors.text,
+      ),
       decoration: InputDecoration(
+        filled: true,
+        fillColor: AppColors.card,
         labelText: label,
         hintText: hint,
-        prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 20) : null,
+        prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 20, color: AppColors.secondaryText) : null,
         suffixIcon: suffixIcon,
       ),
     );
   }
 }
 
-/// 3. AppCard: Standard rounded card with subtle border and elevation
+/// 3. AppCard: Standard rounded card with pure white surface, 16px radius, and soft diffused drop shadow
 class AppCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final EdgeInsetsGeometry? margin;
   final VoidCallback? onTap;
   final Color? color;
+  final double radius;
 
   const AppCard({
     super.key,
@@ -171,83 +183,99 @@ class AppCard extends StatelessWidget {
     this.margin = const EdgeInsets.symmetric(vertical: 4),
     this.onTap,
     this.color,
+    this.radius = AppTheme.cardRadius,
   });
 
   @override
   Widget build(BuildContext context) {
-    final card = Card(
-      color: color,
+    final cardContent = Container(
       margin: margin,
-      child: Padding(
-        padding: padding ?? EdgeInsets.zero,
-        child: child,
+      decoration: BoxDecoration(
+        color: color ?? AppColors.card,
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: AppColors.border, width: 1),
+        boxShadow: AppColors.cardShadow,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(radius),
+          child: Padding(
+            padding: padding ?? EdgeInsets.zero,
+            child: child,
+          ),
+        ),
       ),
     );
 
-    if (onTap != null) {
-      return InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: card,
-      );
-    }
-    return card;
+    return cardContent;
   }
 }
 
-/// 4. StatusBadge: Standard status chip for Stock and User roles
+/// 4. StatusBadge: Standard full-pill (999px) status badge with semantic pastel backgrounds
 class StatusBadge extends StatelessWidget {
   final String label;
   final Color color;
+  final Color? backgroundColor;
   final IconData? icon;
 
   const StatusBadge({
     super.key,
     required this.label,
     required this.color,
+    this.backgroundColor,
     this.icon,
   });
 
   factory StatusBadge.inStock() => const StatusBadge(
         label: 'In Stock',
-        color: AppColors.success,
+        color: AppColors.inStockText,
+        backgroundColor: AppColors.inStockBg,
       );
 
   factory StatusBadge.lowStock() => const StatusBadge(
         label: 'Low Stock',
-        color: AppColors.warning,
+        color: AppColors.lowStockText,
+        backgroundColor: AppColors.lowStockBg,
       );
 
   factory StatusBadge.outOfStock() => const StatusBadge(
         label: 'Out of Stock',
-        color: AppColors.danger,
+        color: AppColors.outOfStockText,
+        backgroundColor: AppColors.outOfStockBg,
       );
 
   factory StatusBadge.active() => const StatusBadge(
         label: 'Active',
-        color: AppColors.success,
+        color: AppColors.inStockText,
+        backgroundColor: AppColors.inStockBg,
       );
 
   factory StatusBadge.inactive() => const StatusBadge(
         label: 'Inactive',
         color: AppColors.secondaryText,
+        backgroundColor: Color(0xFFF0F1F5),
       );
 
   factory StatusBadge.admin() => const StatusBadge(
         label: 'ADMIN',
-        color: AppColors.primary,
+        color: AppColors.primaryDark,
+        backgroundColor: AppColors.primaryActive,
         icon: Icons.shield_outlined,
       );
 
   factory StatusBadge.warehouseManager() => const StatusBadge(
         label: 'WAREHOUSE MANAGER',
-        color: Color(0xFFD97706),
+        color: AppColors.lowStockText,
+        backgroundColor: AppColors.lowStockBg,
         icon: Icons.warehouse_outlined,
       );
 
   factory StatusBadge.staff() => const StatusBadge(
         label: 'STAFF',
         color: Color(0xFF0284C7),
+        backgroundColor: Color(0xFFE0F2FE),
         icon: Icons.badge_outlined,
       );
 
@@ -262,12 +290,13 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bg = backgroundColor ?? color.withValues(alpha: 0.12);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        color: bg,
+        borderRadius: BorderRadius.circular(AppTheme.pillRadius),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -282,6 +311,7 @@ class StatusBadge extends StatelessWidget {
               color: color,
               fontSize: 11,
               fontWeight: FontWeight.w600,
+              letterSpacing: -0.1,
             ),
           ),
         ],
@@ -302,7 +332,7 @@ class LoadingWidget extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           const CircularProgressIndicator(
-            color: AppColors.primary,
+            color: AppColors.primaryDark,
             strokeWidth: 3,
           ),
           if (message != null) ...[
@@ -369,7 +399,7 @@ class ErrorState extends StatelessWidget {
   }
 }
 
-/// 7. ResponsiveContainer: Feature 4 helper for adapting layout across small/large phones and tablets
+/// 7. ResponsiveContainer: Helper for adapting layout across small/large screens
 class ResponsiveContainer extends StatelessWidget {
   final Widget child;
   final double maxWidth;
@@ -391,7 +421,8 @@ class ResponsiveContainer extends StatelessWidget {
   }
 }
 
-/// 8. AppFilterChip: Reusable filter chip with optional icon, count badge, and custom color
+/// 8. AppFilterChip: Reusable pill-shaped filter chip (999px)
+/// Active chips use light lavender fill (#EBE8FC); inactive chips use pure white with subtle borders
 class AppFilterChip extends StatelessWidget {
   final String label;
   final bool selected;
@@ -410,31 +441,57 @@ class AppFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeColor = color ?? AppColors.primary;
+    final activeTextColor = color != null ? color! : AppColors.primaryDark;
 
-    return ChoiceChip(
-      avatar: icon != null
-          ? Icon(
-              icon,
-              size: 15,
-              color: selected ? activeColor : AppColors.secondaryText,
-            )
-          : null,
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onSelected(),
-      selectedColor: activeColor.withValues(alpha: 0.15),
-      labelStyle: TextStyle(
-        fontSize: 12,
-        color: selected ? activeColor : null,
-        fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onSelected,
+        borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primaryActive : AppColors.card,
+            borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+            border: Border.all(
+              color: selected
+                  ? AppColors.primary.withValues(alpha: 0.4)
+                  : AppColors.border,
+              width: 1,
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x041A1A1A),
+                blurRadius: 6,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(
+                  icon,
+                  size: 15,
+                  color: selected ? activeTextColor : AppColors.secondaryText,
+                ),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  color: selected ? activeTextColor : AppColors.secondaryText,
+                  letterSpacing: -0.1,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
-      side: BorderSide(
-        color: selected
-            ? activeColor.withValues(alpha: 0.4)
-            : Colors.grey.withValues(alpha: 0.25),
-      ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     );
   }
 }

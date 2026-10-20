@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 /// Manages app settings: theme, currency, low-stock threshold, notifications
 class SettingsProvider extends ChangeNotifier {
-  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode _themeMode = ThemeMode.light;
   int _lowStockThreshold = 10;
   String _currency = 'USD';
   String _currencySymbol = '\$';

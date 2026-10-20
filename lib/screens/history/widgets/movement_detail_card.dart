@@ -112,9 +112,7 @@ class MovementDetailCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? AppColors.grey800.withValues(alpha: 0.5)
-                    : AppColors.grey100,
+                color: AppColors.background,
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Row(

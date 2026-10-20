@@ -14,7 +14,11 @@ import '../../models/product.dart';
 import '../../models/category.dart';
 import 'widgets/product_filter_sheet.dart';
 
-/// Products list with search, filter chips, slidable actions
+/// Products / Inventory screen matching Image 2:
+/// - Top Header: "Inventory" title on left, pill "Add Product" on right
+/// - Search & Filter Bar: Circular search button next to horizontal scrolling pill filter chips
+///   ("Total Stock" [active lavender], "Out of Stock", "Low Stock", Categories...)
+/// - List of Inventory Cards with 56px thumbnail, 3-line info with "X in Stock | ↑ 6%", and semantic status pill badge
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
 
@@ -24,6 +28,7 @@ class ProductsScreen extends StatefulWidget {
 
 class _ProductsScreenState extends State<ProductsScreen> {
   final _searchCtrl = TextEditingController();
+  bool _showSearch = false;
 
   @override
   void initState() {
@@ -48,7 +53,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final auth = context.read<AuthProvider>();
     final canViewCategories = auth.user?.canViewCategories ?? true;
     final products = context.read<ProductProvider>();
-    final categories = canViewCategories ? context.read<CategoryProvider>().categories : <Category>[];
+    final categories = canViewCategories
+        ? context.read<CategoryProvider>().categories
+        : <Category>[];
     final suppliers = context.read<SupplierProvider>().allSuppliers;
 
     ProductFilterSheet.show(
@@ -89,181 +96,385 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final categories = context.watch<CategoryProvider>();
     final filtered = products.filteredProducts;
 
+    final bool isAllSelected = products.selectedCategoryId == null &&
+        products.statusFilter == null &&
+        products.selectedSupplierId == null;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Products'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list_outlined),
-            tooltip: 'Filter Products',
-            onPressed: () => _openFilterBottomSheet(context),
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Top Header matching Image 2: "Inventory" + Pill "Add Product"
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
+              child: Row(
+                children: [
+                  const Text(
+                    'Inventory',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.6,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (canManageProducts)
+                    GestureDetector(
+                      onTap: () => context.push('/products/add'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.pillRadius),
+                          border: Border.all(color: AppColors.border),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x041A1A1A),
+                              blurRadius: 6,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Text(
+                          'Add Product',
+                          style: TextStyle(
+                            color: AppColors.text,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.1,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 14),
+
+            // Search & Filter Bar matching Image 2:
+            // Circular search icon button on left + Horizontal scrolling pill filter chips
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: Row(
+                children: [
+                  // Circular search icon button
+                  GestureDetector(
+                    onTap: () => setState(() => _showSearch = !_showSearch),
+                    child: Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: _showSearch
+                            ? AppColors.primaryActive
+                            : AppColors.card,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: _showSearch
+                              ? AppColors.primary.withValues(alpha: 0.5)
+                              : AppColors.border,
+                        ),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x041A1A1A),
+                            blurRadius: 6,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Icon(
+                          Icons.search_rounded,
+                          size: 20,
+                          color: _showSearch
+                              ? AppColors.primaryDark
+                              : AppColors.text,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+
+                  // Horizontal scrolling pill filter chips
+                  Expanded(
+                    child: SizedBox(
+                      height: 42,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        children: [
+                          // 1. "Total Stock" pill chip (Active by default if no filters)
+                          _FilterPill(
+                            label: 'Total Stock',
+                            selected: isAllSelected,
+                            onTap: () => products.clearFilters(),
+                          ),
+                          const SizedBox(width: 8),
+
+                          // 2. "Out of Stock" pill chip
+                          _FilterPill(
+                            label: 'Out of Stock',
+                            selected: products.statusFilter ==
+                                StockStatus.outOfStock,
+                            onTap: () => products
+                                .setStatusFilter(StockStatus.outOfStock),
+                          ),
+                          const SizedBox(width: 8),
+
+                          // 3. "Low Stock" pill chip
+                          _FilterPill(
+                            label: 'Low Stock',
+                            selected:
+                                products.statusFilter == StockStatus.lowStock,
+                            onTap: () => products
+                                .setStatusFilter(StockStatus.lowStock),
+                          ),
+                          const SizedBox(width: 8),
+
+                          // 4. Categories chips
+                          if (canViewCategories)
+                            ...categories.categories.map(
+                              (cat) => Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: _FilterPill(
+                                  label: cat.name,
+                                  selected:
+                                      products.selectedCategoryId == cat.id,
+                                  onTap: () =>
+                                      products.setCategoryFilter(cat.id),
+                                ),
+                              ),
+                            ),
+
+                          // Filter sheet toggle button
+                          GestureDetector(
+                            onTap: () => _openFilterBottomSheet(context),
+                            child: Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                color: AppColors.card,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: const Center(
+                                child: Icon(
+                                  Icons.tune_rounded,
+                                  size: 18,
+                                  color: AppColors.secondaryText,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Expanding search field
+            if (_showSearch) ...[
+              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: SearchField(
+                  controller: _searchCtrl,
+                  hint: 'Search products, SKU...',
+                  onChanged: products.setSearch,
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 12),
+
+            // Product Cards List matching Image 2
+            Expanded(
+              child: products.isLoading && products.allProducts.isEmpty
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primaryDark,
+                        strokeWidth: 3,
+                      ),
+                    )
+                  : products.error != null && products.allProducts.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.error_outline_rounded,
+                                  size: 48,
+                                  color: AppColors.outOfStockText,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  products.error!,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: AppColors.secondaryText,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                AppButton(
+                                  label: 'Retry',
+                                  width: 120,
+                                  onPressed: () => products.fetchProducts(),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: () async {
+                            await Future.wait([
+                              products.fetchProducts(),
+                              categories.fetchCategories(),
+                            ]);
+                          },
+                          color: AppColors.primaryDark,
+                          child: filtered.isEmpty
+                              ? ListView(
+                                  children: [
+                                    const SizedBox(height: 80),
+                                    EmptyState(
+                                      message: 'No products found',
+                                      subtitle: products.searchQuery.isNotEmpty
+                                          ? 'Try a different search term'
+                                          : 'Add a product using the button above',
+                                      icon: Icons.inventory_2_outlined,
+                                    ),
+                                  ],
+                                )
+                              : ListView.builder(
+                                  padding: const EdgeInsets.fromLTRB(
+                                      18, 4, 18, 100),
+                                  itemCount: filtered.length,
+                                  itemBuilder: (_, i) {
+                                    final product = filtered[i];
+                                    final cat = canViewCategories
+                                        ? categories
+                                            .findById(product.categoryId)
+                                        : null;
+                                    return Slidable(
+                                      key: ValueKey(product.id),
+                                      endActionPane: canManageProducts
+                                          ? ActionPane(
+                                              motion: const DrawerMotion(),
+                                              children: [
+                                                SlidableAction(
+                                                  onPressed: (_) => context.push(
+                                                      '/products/edit/${product.id}'),
+                                                  backgroundColor:
+                                                      AppColors.primaryDark,
+                                                  foregroundColor: Colors.white,
+                                                  icon: Icons.edit_outlined,
+                                                  label: 'Edit',
+                                                  borderRadius:
+                                                      const BorderRadius
+                                                          .horizontal(
+                                                          left: Radius.circular(
+                                                              12)),
+                                                ),
+                                                SlidableAction(
+                                                  onPressed: (_) =>
+                                                      _deleteProduct(
+                                                          context, product),
+                                                  backgroundColor:
+                                                      AppColors.outOfStockText,
+                                                  foregroundColor: Colors.white,
+                                                  icon: Icons.delete_outlined,
+                                                  label: 'Delete',
+                                                  borderRadius:
+                                                      const BorderRadius
+                                                          .horizontal(
+                                                          right:
+                                                              Radius.circular(
+                                                                  12)),
+                                                ),
+                                              ],
+                                            )
+                                          : null,
+                                      child: ProductCard(
+                                        product: product,
+                                        categoryName: canViewCategories
+                                            ? (cat?.name ??
+                                                product.categoryName ??
+                                                '')
+                                            : '',
+                                        onTap: () => context
+                                            .push('/products/${product.id}'),
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterPill extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _FilterPill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primaryActive : AppColors.card,
+            borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+            border: Border.all(
+              color: selected
+                  ? AppColors.primary.withValues(alpha: 0.3)
+                  : AppColors.border,
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x041A1A1A),
+                blurRadius: 6,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
-          const SizedBox(width: 4),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(56),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: SearchField(
-              controller: _searchCtrl,
-              hint: 'Search products, SKU...',
-              onChanged: products.setSearch,
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? AppColors.primaryDark : AppColors.text,
+                letterSpacing: -0.1,
+              ),
             ),
           ),
         ),
       ),
-      body: Column(
-        children: [
-          // Filter chips
-          SizedBox(
-            height: 48,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                AppFilterChip(
-                  label: 'All',
-                  selected: products.selectedCategoryId == null &&
-                      products.statusFilter == null &&
-                      products.selectedSupplierId == null,
-                  onSelected: () => products.clearFilters(),
-                ),
-                const SizedBox(width: 8),
-                AppFilterChip(
-                  label: 'Low Stock',
-                  selected: products.statusFilter == StockStatus.lowStock,
-                  onSelected: () =>
-                      products.setStatusFilter(StockStatus.lowStock),
-                  color: AppColors.lowStock,
-                ),
-                const SizedBox(width: 8),
-                AppFilterChip(
-                  label: 'Out of Stock',
-                  selected: products.statusFilter == StockStatus.outOfStock,
-                  onSelected: () =>
-                      products.setStatusFilter(StockStatus.outOfStock),
-                  color: AppColors.outOfStock,
-                ),
-                const SizedBox(width: 8),
-                if (canViewCategories)
-                  ...categories.categories.map((cat) => Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: AppFilterChip(
-                          label: cat.name,
-                          selected: products.selectedCategoryId == cat.id,
-                          onSelected: () => products.setCategoryFilter(cat.id),
-                        ),
-                      )),
-              ],
-            ),
-          ),
-
-          // List
-          Expanded(
-            child: products.isLoading && products.allProducts.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : products.error != null && products.allProducts.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.error_outline, size: 48, color: AppColors.danger),
-                              const SizedBox(height: 12),
-                              Text(
-                                products.error!,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(color: AppColors.danger, fontSize: 14),
-                              ),
-                              const SizedBox(height: 16),
-                              FilledButton(
-                                onPressed: () => products.fetchProducts(),
-                                child: const Text('Retry'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: () async {
-                          await Future.wait([
-                            products.fetchProducts(),
-                            categories.fetchCategories(),
-                          ]);
-                        },
-                        child: filtered.isEmpty
-                            ? ListView(
-                                children: [
-                                  const SizedBox(height: 80),
-                                  EmptyState(
-                                    message: 'No products found',
-                                    subtitle: products.searchQuery.isNotEmpty
-                                        ? 'Try a different search term'
-                                        : 'Add a product using the + button',
-                                    icon: Icons.inventory_2_outlined,
-                                  ),
-                                ],
-                              )
-                            : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 0),
-                    itemBuilder: (_, i) {
-                      final product = filtered[i];
-                      final cat = canViewCategories ? categories.findById(product.categoryId) : null;
-                      return Slidable(
-                        key: ValueKey(product.id),
-                        endActionPane: canManageProducts
-                            ? ActionPane(
-                                motion: const DrawerMotion(),
-                                children: [
-                                  SlidableAction(
-                                    onPressed: (_) =>
-                                        context.push('/products/edit/${product.id}'),
-                                    backgroundColor: AppColors.primary,
-                                    foregroundColor: Colors.white,
-                                    icon: Icons.edit_outlined,
-                                    label: 'Edit',
-                                    borderRadius: const BorderRadius.horizontal(
-                                        left: Radius.circular(12)),
-                                  ),
-                                  SlidableAction(
-                                    onPressed: (_) =>
-                                        _deleteProduct(context, product),
-                                    backgroundColor: AppColors.outOfStock,
-                                    foregroundColor: Colors.white,
-                                    icon: Icons.delete_outlined,
-                                    label: 'Delete',
-                                    borderRadius: const BorderRadius.horizontal(
-                                        right: Radius.circular(12)),
-                                  ),
-                                ],
-                              )
-                            : null,
-                        child: ProductCard(
-                          product: product,
-                          categoryName: canViewCategories
-                              ? (cat?.name ?? product.categoryName ?? 'Unknown')
-                              : '',
-                          onTap: () => context.push('/products/${product.id}'),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-          ),
-        ],
-      ),
-      floatingActionButton: canManageProducts
-          ? FloatingActionButton.extended(
-              onPressed: () => context.push('/products/add'),
-              icon: const Icon(Icons.add),
-              label: const Text('Add Product'),
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            )
-          : null,
     );
   }
 }

@@ -4,8 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:inventory_management/core/theme/app_theme.dart';
 import 'package:inventory_management/providers/auth_provider.dart';
 
-/// Quick action shortcuts for the Dashboard (Stock In, Stock Out, Add Product, Reports).
-/// Staff accounts cannot stock out, so Stock Out is hidden for staff.
+/// Quick action shortcuts for the Dashboard with modern 999px pill buttons
 class DashboardQuickActions extends StatelessWidget {
   const DashboardQuickActions({super.key});
 
@@ -17,37 +16,42 @@ class DashboardQuickActions extends StatelessWidget {
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
       child: Row(
         children: [
           _ActionButton(
-            icon: Icons.arrow_downward,
+            icon: Icons.arrow_downward_rounded,
             label: 'Stock In',
-            color: AppColors.chartIn,
+            textColor: AppColors.inStockText,
+            bgColor: AppColors.inStockBg,
             onTap: () => context.go('/stock?tab=in'),
           ),
           const SizedBox(width: 8),
           if (canStockOut) ...[
             _ActionButton(
-              icon: Icons.arrow_upward,
+              icon: Icons.arrow_upward_rounded,
               label: 'Stock Out',
-              color: AppColors.chartOut,
+              textColor: AppColors.outOfStockText,
+              bgColor: AppColors.outOfStockBg,
               onTap: () => context.go('/stock?tab=out'),
             ),
             const SizedBox(width: 8),
           ],
           if (canManageProducts) ...[
             _ActionButton(
-              icon: Icons.add_box_outlined,
+              icon: Icons.add_rounded,
               label: 'Add Product',
-              color: AppColors.primary,
+              textColor: AppColors.primaryDark,
+              bgColor: AppColors.primaryActive,
               onTap: () => context.push('/products/add'),
             ),
             const SizedBox(width: 8),
           ],
           _ActionButton(
-            icon: Icons.bar_chart_outlined,
+            icon: Icons.bar_chart_rounded,
             label: 'Reports',
-            color: const Color(0xFF10B981),
+            textColor: const Color(0xFF0F766E),
+            bgColor: const Color(0xFFCCFBF1),
             onTap: () => context.go('/reports'),
           ),
         ],
@@ -59,41 +63,51 @@ class DashboardQuickActions extends StatelessWidget {
 class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
-  final Color color;
+  final Color textColor;
+  final Color bgColor;
   final VoidCallback onTap;
 
   const _ActionButton({
     required this.icon,
     required this.label,
-    required this.color,
+    required this.textColor,
+    required this.bgColor,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withValues(alpha: 0.25)),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+            border: Border.all(
+              color: textColor.withValues(alpha: 0.2),
+              width: 1,
             ),
-          ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: textColor),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.1,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

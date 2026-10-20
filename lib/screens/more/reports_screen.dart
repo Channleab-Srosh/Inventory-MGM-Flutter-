@@ -115,7 +115,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                         SnackBar(
                           content: Text(
                               '${_getReportTitle(_tabCtrl.index)} exported to CSV successfully!'),
-                          backgroundColor: AppColors.inStock,
+                          backgroundColor: AppColors.inStockText,
                         ),
                       );
                     },
@@ -125,7 +125,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                 Expanded(
                   child: OutlinedButton.icon(
                     icon: const Icon(Icons.picture_as_pdf_outlined,
-                        color: AppColors.danger),
+                        color: AppColors.outOfStockText),
                     label: const Text('PDF Document'),
                     onPressed: () {
                       Navigator.pop(ctx);
@@ -133,7 +133,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                         SnackBar(
                           content: Text(
                               '${_getReportTitle(_tabCtrl.index)} exported to PDF successfully!'),
-                          backgroundColor: AppColors.primary,
+                          backgroundColor: AppColors.primaryDark,
                         ),
                       );
                     },
@@ -176,26 +176,52 @@ class _ReportsScreenState extends State<ReportsScreen>
     final periodLabel = _getPeriodLabel();
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Inventory Reports'),
+        backgroundColor: AppColors.background,
+        scrolledUnderElevation: 0,
+        title: const Text('Reports'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.download_outlined),
-            tooltip: 'Export Report',
-            onPressed: () => _exportReport(context),
+          GestureDetector(
+            onTap: () => _exportReport(context),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              margin: const EdgeInsets.only(right: 18),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+                border: Border.all(color: AppColors.border),
+                boxShadow: AppColors.cardShadow,
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.download_rounded, size: 16, color: AppColors.secondaryText),
+                  SizedBox(width: 6),
+                  Text(
+                    'Export',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.secondaryText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(width: 6),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(100),
+          preferredSize: const Size.fromHeight(108),
           child: Column(
             children: [
-              // Date Filter Chips (Today, This Week, This Month, Custom Date)
+              // Date Filter Pills (Today, This Week, This Month, Custom Date)
               SizedBox(
-                height: 40,
+                height: 46,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
                   children: [
                     _PeriodChip(
                       label: 'Today',
@@ -220,7 +246,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                     const SizedBox(width: 8),
                     _PeriodChip(
                       label: 'Custom Date',
-                      icon: Icons.calendar_month_outlined,
+                      icon: Icons.calendar_month_rounded,
                       selected: _selectedPeriod == DateFilterPeriod.custom,
                       onTap: () async {
                         final picked = await showDateRangePicker(
@@ -228,6 +254,14 @@ class _ReportsScreenState extends State<ReportsScreen>
                           initialDateRange: _customDateRange,
                           firstDate: DateTime(2020),
                           lastDate: DateTime.now(),
+                          builder: (context, child) => Theme(
+                            data: Theme.of(context).copyWith(
+                              colorScheme: Theme.of(context).colorScheme.copyWith(
+                                primary: AppColors.primaryDark,
+                              ),
+                            ),
+                            child: child!,
+                          ),
                         );
                         if (picked != null) {
                           setState(() {
@@ -240,19 +274,38 @@ class _ReportsScreenState extends State<ReportsScreen>
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
 
-              // Report Category Tabs
+              // Report Category Tabs with pill-style indicator
               TabBar(
                 controller: _tabCtrl,
                 isScrollable: true,
                 tabAlignment: TabAlignment.start,
+                labelColor: AppColors.primaryDark,
+                unselectedLabelColor: AppColors.secondaryText,
+                labelStyle: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.1,
+                ),
+                unselectedLabelStyle: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+                indicator: BoxDecoration(
+                  color: AppColors.primaryActive,
+                  borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+                ),
+                indicatorSize: TabBarIndicatorSize.label,
+                indicatorPadding: const EdgeInsets.symmetric(horizontal: -8, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                dividerColor: Colors.transparent,
                 tabs: const [
                   Tab(text: 'Stock Summary'),
-                  Tab(text: 'Stock In Report'),
-                  Tab(text: 'Stock Out Report'),
-                  Tab(text: 'Low Stock Report'),
-                  Tab(text: 'Transaction History'),
+                  Tab(text: 'Stock In'),
+                  Tab(text: 'Stock Out'),
+                  Tab(text: 'Low Stock'),
+                  Tab(text: 'Transactions'),
                 ],
               ),
             ],
@@ -288,16 +341,42 @@ class _PeriodChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChoiceChip(
-      avatar: icon != null ? Icon(icon, size: 14) : null,
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onTap(),
-      selectedColor: AppColors.primary.withValues(alpha: 0.15),
-      labelStyle: TextStyle(
-        fontSize: 12,
-        color: selected ? AppColors.primary : null,
-        fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primaryActive : AppColors.card,
+            borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+            border: Border.all(
+              color: selected
+                  ? AppColors.primary.withValues(alpha: 0.4)
+                  : AppColors.border,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 14,
+                    color: selected ? AppColors.primaryDark : AppColors.secondaryText),
+                const SizedBox(width: 5),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: selected ? AppColors.primaryDark : AppColors.secondaryText,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

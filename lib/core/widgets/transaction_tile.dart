@@ -4,8 +4,7 @@ import '../../models/stock_movement.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/app_utils.dart';
 
-/// Reusable Transaction / Movement Tile
-/// Used in Dashboard, History, and Reports screens to represent stock movements.
+/// Reusable Transaction / Movement Tile matching the modern 16px card & pill aesthetic
 class TransactionTile extends StatelessWidget {
   final StockMovement movement;
   final VoidCallback? onTap;
@@ -21,8 +20,9 @@ class TransactionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isIn = movement.type == MovementType.stockIn;
-    final color = isIn ? AppColors.success : AppColors.danger;
-    final icon = isIn ? Icons.south_west : Icons.north_east;
+    final fgColor = isIn ? AppColors.inStockText : AppColors.outOfStockText;
+    final bgColor = isIn ? AppColors.inStockBg : AppColors.outOfStockBg;
+    final icon = isIn ? Icons.south_west_rounded : Icons.north_east_rounded;
     final sign = isIn ? '+' : '-';
     final typeLabel = isIn ? 'STOCK IN' : 'STOCK OUT';
 
@@ -34,93 +34,124 @@ class TransactionTile extends StatelessWidget {
         ? 'Today, ${AppUtils.formatTime(movement.date)}'
         : DateFormat('MMM d, HH:mm').format(movement.date);
 
-    final card = Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-        leading: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: color, size: 20),
-        ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                movement.productName,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.text,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        border: Border.all(color: AppColors.border, width: 1),
+        boxShadow: AppColors.cardShadow,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                // Circular pastel icon
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: fgColor, size: 20),
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+                const SizedBox(width: 12),
+
+                // Info center stack
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              movement.productName,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -0.2,
+                                color: AppColors.text,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: bgColor,
+                              borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+                            ),
+                            child: Text(
+                              typeLabel,
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: fgColor,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '$dateStr · ${movement.userName}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.secondaryText,
+                        ),
+                      ),
+                      if (movement.stockBefore != null && movement.stockAfter != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          'Stock: ${movement.stockBefore} → ${movement.stockAfter} ${movement.unit ?? "pcs"}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.secondaryText,
+                          ),
+                        ),
+                      ],
+                      if (showReference && movement.reference != null && movement.reference!.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          'Ref: ${movement.reference}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                            color: AppColors.secondaryText,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Quantity trailing
+                Text(
+                  '$sign${movement.quantity} ${movement.unit ?? "pcs"}',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
+                    color: fgColor,
+                  ),
+                ),
+              ],
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                typeLabel,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-            ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 2),
-            Text(
-              '$dateStr · ${movement.userName}',
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.secondaryText,
-              ),
-            ),
-            if (movement.stockBefore != null && movement.stockAfter != null)
-              Text(
-                'Stock: ${movement.stockBefore} → ${movement.stockAfter} ${movement.unit ?? "pcs"}',
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.secondaryText,
-                ),
-              ),
-            if (showReference && movement.reference != null && movement.reference!.isNotEmpty)
-              Text(
-                'Ref: ${movement.reference}',
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontStyle: FontStyle.italic,
-                  color: AppColors.secondaryText,
-                ),
-              ),
-          ],
-        ),
-        trailing: Text(
-          '$sign${movement.quantity} ${movement.unit ?? "pcs"}',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: color,
           ),
         ),
       ),
     );
-
-    return card;
   }
 }

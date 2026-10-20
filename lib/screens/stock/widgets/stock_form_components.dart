@@ -27,11 +27,9 @@ class ProductSelectorField extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? AppColors.grey800
-              : AppColors.grey50,
+          color: AppColors.card,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.grey200),
+          border: Border.all(color: AppColors.border),
         ),
         child: Row(
           children: [
@@ -175,11 +173,9 @@ class DatePickerField extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? AppColors.grey800
-              : AppColors.grey50,
+          color: AppColors.card,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.grey200),
+          border: Border.all(color: AppColors.border),
         ),
         child: Row(
           children: [

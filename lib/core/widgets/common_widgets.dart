@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-/// A stats summary card for the dashboard grid
+/// A stats summary card matching the Bento aesthetic with generous 24px radius
 class SummaryCard extends StatelessWidget {
   final String title;
   final String value;
   final IconData icon;
   final Color color;
   final VoidCallback? onTap;
+  final bool isPrimary;
 
   const SummaryCard({
     super.key,
@@ -16,37 +17,87 @@ class SummaryCard extends StatelessWidget {
     required this.icon,
     required this.color,
     this.onTap,
+    this.isPrimary = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
+    return Container(
+      decoration: BoxDecoration(
+        color: isPrimary ? AppColors.primary : AppColors.card,
+        borderRadius: BorderRadius.circular(AppTheme.bentoRadius),
+        border: Border.all(
+          color: isPrimary ? Colors.transparent : AppColors.border,
+          width: 1,
+        ),
+        boxShadow: isPrimary ? AppColors.lavenderShadow : AppColors.cardShadow,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppTheme.bentoRadius),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isPrimary
+                            ? Colors.white.withValues(alpha: 0.25)
+                            : color.withValues(alpha: 0.12),
+                      ),
+                      child: Icon(
+                        icon,
+                        color: isPrimary ? Colors.white : color,
+                        size: 20,
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_outward_rounded,
+                      size: 18,
+                      color: isPrimary
+                          ? Colors.white.withValues(alpha: 0.8)
+                          : AppColors.secondaryText,
+                    ),
+                  ],
                 ),
-                child: Icon(icon, color: color, size: 22),
-              ),
-              const SizedBox(height: 12),
-              Text(value,
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 24,
-                  )),
-              const SizedBox(height: 4),
-              Text(title, style: theme.textTheme.bodyMedium),
-            ],
+                const SizedBox(height: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.5,
+                        color: isPrimary ? Colors.white : AppColors.text,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                        color: isPrimary
+                            ? Colors.white.withValues(alpha: 0.85)
+                            : AppColors.secondaryText,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -54,39 +105,65 @@ class SummaryCard extends StatelessWidget {
   }
 }
 
-/// Status chip: In Stock / Low Stock / Out of Stock
+/// Semantic status pill badge: In Stock / Low Stock / Out of Stock
 class StatusChip extends StatelessWidget {
   final String label;
-  final Color color;
+  final Color? color;
+  final Color? textColor;
+  final Color? backgroundColor;
 
-  const StatusChip({super.key, required this.label, required this.color});
+  const StatusChip({
+    super.key,
+    required this.label,
+    this.color,
+    this.textColor,
+    this.backgroundColor,
+  });
 
-  factory StatusChip.inStock() =>
-      const StatusChip(label: 'In Stock', color: AppColors.inStock);
-  factory StatusChip.lowStock() =>
-      const StatusChip(label: 'Low Stock', color: AppColors.lowStock);
-  factory StatusChip.outOfStock() =>
-      const StatusChip(label: 'Out of Stock', color: AppColors.outOfStock);
+  factory StatusChip.inStock() => const StatusChip(
+        label: 'In Stock',
+        textColor: AppColors.inStockText,
+        backgroundColor: AppColors.inStockBg,
+      );
+
+  factory StatusChip.lowStock() => const StatusChip(
+        label: 'Low Stock',
+        textColor: AppColors.lowStockText,
+        backgroundColor: AppColors.lowStockBg,
+      );
+
+  factory StatusChip.outOfStock() => const StatusChip(
+        label: 'Out of Stock',
+        textColor: AppColors.outOfStockText,
+        backgroundColor: AppColors.outOfStockBg,
+      );
 
   @override
   Widget build(BuildContext context) {
+    final fg = textColor ?? color ?? AppColors.text;
+    final bg = backgroundColor ??
+        (color != null ? color!.withValues(alpha: 0.12) : AppColors.primaryActive);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        color: bg,
+        borderRadius: BorderRadius.circular(AppTheme.pillRadius),
       ),
       child: Text(
         label,
         style: TextStyle(
-            color: color, fontSize: 11, fontWeight: FontWeight.w600),
+          color: fg,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.1,
+        ),
       ),
     );
   }
 }
 
-/// Search field with clear button
+/// Search field with pill/rounded aesthetic and clear button
 class SearchField extends StatefulWidget {
   final String hint;
   final ValueChanged<String> onChanged;
@@ -114,23 +191,52 @@ class _SearchFieldState extends State<SearchField> {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: _controller,
-      onChanged: widget.onChanged,
-      decoration: InputDecoration(
-        hintText: widget.hint,
-        prefixIcon: const Icon(Icons.search, size: 20),
-        suffixIcon: ValueListenableBuilder(
-          valueListenable: _controller,
-          builder: (_, value, __) => value.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear, size: 18),
-                  onPressed: () {
-                    _controller.clear();
-                    widget.onChanged('');
-                  },
-                )
-              : const SizedBox.shrink(),
+    return Container(
+      height: 46,
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x041A1A1A),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _controller,
+        onChanged: widget.onChanged,
+        style: const TextStyle(
+          fontSize: 14,
+          color: AppColors.text,
+        ),
+        decoration: InputDecoration(
+          hintText: widget.hint,
+          hintStyle: const TextStyle(
+            fontSize: 13,
+            color: AppColors.secondaryText,
+          ),
+          prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.secondaryText),
+          suffixIcon: ValueListenableBuilder(
+            valueListenable: _controller,
+            builder: (_, value, __) => value.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear, size: 18, color: AppColors.secondaryText),
+                    onPressed: () {
+                      _controller.clear();
+                      widget.onChanged('');
+                    },
+                  )
+                : const SizedBox.shrink(),
+          ),
+          filled: true,
+          fillColor: Colors.transparent,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
         ),
       ),
     );
@@ -165,7 +271,7 @@ class ConfirmDialog extends StatelessWidget {
             title: title,
             message: message,
             confirmLabel: confirmLabel,
-            confirmColor: confirmColor ?? Colors.red,
+            confirmColor: confirmColor ?? AppColors.danger,
           ),
         ) ??
         false;
@@ -174,17 +280,43 @@ class ConfirmDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(title),
-      content: Text(message),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: AppColors.card,
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: AppColors.text,
+        ),
+      ),
+      content: Text(
+        message,
+        style: const TextStyle(
+          fontSize: 14,
+          color: AppColors.secondaryText,
+        ),
+      ),
+      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.secondaryText,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+            ),
+          ),
           child: const Text('Cancel'),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: confirmColor ?? Colors.red,
-            minimumSize: const Size(80, 44),
+            backgroundColor: confirmColor ?? AppColors.danger,
+            foregroundColor: Colors.white,
+            minimumSize: const Size(96, 42),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+            ),
           ),
           onPressed: () => Navigator.pop(context, true),
           child: Text(confirmLabel),
@@ -211,26 +343,44 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 72, color: AppColors.grey200),
+            Container(
+              width: 72,
+              height: 72,
+              decoration: const BoxDecoration(
+                color: Color(0xFFF0F1F5),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 36, color: AppColors.secondaryText),
+            ),
             const SizedBox(height: 16),
-            Text(message,
-                style: theme.textTheme.titleMedium,
-                textAlign: TextAlign.center),
+            Text(
+              message,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.text,
+              ),
+              textAlign: TextAlign.center,
+            ),
             if (subtitle != null) ...[
-              const SizedBox(height: 8),
-              Text(subtitle!,
-                  style: theme.textTheme.bodyMedium,
-                  textAlign: TextAlign.center),
+              const SizedBox(height: 6),
+              Text(
+                subtitle!,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.secondaryText,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ],
             if (action != null) ...[
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               action!,
             ],
           ],
@@ -251,7 +401,15 @@ class SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(title, style: Theme.of(context).textTheme.titleMedium),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.3,
+            color: AppColors.text,
+          ),
+        ),
         const Spacer(),
         if (trailing != null) trailing!,
       ],
@@ -259,7 +417,7 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
-/// +/- quantity stepper
+/// +/- quantity stepper with pill/rounded aesthetic
 class QuantityStepper extends StatelessWidget {
   final int value;
   final int min;
@@ -276,29 +434,38 @@ class QuantityStepper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _StepButton(
-          icon: Icons.remove,
-          onTap: value > min ? () => onChanged(value - 1) : null,
-        ),
-        Container(
-          width: 56,
-          alignment: Alignment.center,
-          child: Text(
-            '$value',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+        border: Border.all(color: AppColors.border),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _StepButton(
+            icon: Icons.remove,
+            onTap: value > min ? () => onChanged(value - 1) : null,
+          ),
+          Container(
+            width: 52,
+            alignment: Alignment.center,
+            child: Text(
+              '$value',
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppColors.text,
+              ),
             ),
           ),
-        ),
-        _StepButton(
-          icon: Icons.add,
-          onTap: value < max ? () => onChanged(value + 1) : null,
-        ),
-      ],
+          _StepButton(
+            icon: Icons.add,
+            onTap: value < max ? () => onChanged(value + 1) : null,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -311,17 +478,18 @@ class _StepButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.primary.withValues(alpha: 0.1),
-      borderRadius: BorderRadius.circular(8),
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppTheme.pillRadius),
         child: SizedBox(
-          width: 40,
-          height: 40,
-          child: Icon(icon,
-              size: 20,
-              color: onTap != null ? AppColors.primary : AppColors.grey200),
+          width: 36,
+          height: 36,
+          child: Icon(
+            icon,
+            size: 18,
+            color: onTap != null ? AppColors.text : AppColors.secondaryText.withValues(alpha: 0.4),
+          ),
         ),
       ),
     );

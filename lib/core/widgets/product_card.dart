@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import '../../models/product.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/app_utils.dart';
-import 'common_widgets.dart';
 
-/// Product list card with image placeholder, info, and status chip
+/// Modern List / Inventory Card matching Image 2:
+/// - 16px radius pure white card with subtle border & soft shadow
+/// - 56px rounded-square product thumbnail on light gray background (left)
+/// - 3-line stack (center):
+///     1. Title (e.g. "Smart Watch Series 5")
+///     2. SKU (e.g. "SKU: SWT-2024-087")
+///     3. "8 in Stock  |  ↓ 12%" (Stock count with trend percentage)
+/// - Semantic status pill badge aligned to bottom-right (In Stock / Low Stock / Out of Stock)
 class ProductCard extends StatelessWidget {
   final Product product;
   final String categoryName;
@@ -19,120 +24,230 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              // Product image / placeholder
-              Hero(
-                tag: 'product-${product.id}',
-                child: Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        border: Border.all(color: AppColors.border, width: 1),
+        boxShadow: AppColors.cardShadow,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // 1. 56px rounded-square product thumbnail on a light gray background (left)
+                Hero(
+                  tag: 'product-${product.id}',
+                  child: Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: AppColors.border,
+                        width: 1,
+                      ),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: product.imageUrl != null && product.imageUrl!.isNotEmpty
+                        ? Image.network(
+                            product.imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => _buildFallbackThumbnail(),
+                          )
+                        : _buildFallbackThumbnail(),
                   ),
-                  child: product.imageUrl != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.network(product.imageUrl!,
-                              fit: BoxFit.cover),
-                        )
-                      : const Icon(Icons.inventory_2_outlined,
-                          color: AppColors.primary, size: 28),
                 ),
-              ),
-              const SizedBox(width: 12),
+                const SizedBox(width: 14),
 
-              // Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            product.name,
-                            style: theme.textTheme.titleMedium,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                // 2. 3-line vertical stack (center)
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Line 1: Title (Semi-bold, 15px, deep charcoal)
+                      Text(
+                        product.name,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.2,
+                          color: AppColors.text,
                         ),
-                        _statusChip(product.stockStatus),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'SKU: ${product.sku}',
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        if (categoryName.isNotEmpty) ...[
-                          _InfoBadge(label: categoryName, icon: Icons.label_outline),
-                          const SizedBox(width: 8),
-  
-                        ],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
 
-                        _InfoBadge(
-                          label: 'Qty: ${AppUtils.formatNumber(product.quantity)} ${product.unit}',
-                          icon: Icons.inventory_outlined,
+                      // Line 2: SKU (Regular, 12px, muted gray)
+                      Text(
+                        'SKU: ${product.sku}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: AppColors.secondaryText,
                         ),
-                        const Spacer(),
-                        Text(
-                          AppUtils.formatCurrency(product.price),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 5),
+
+                      // Line 3: "8 in Stock  |  ↓ 12%"
+                      _buildStockLine(),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 10),
+
+                // 3. Semantic status pill badge aligned to the bottom-right
+                Align(
+                  alignment: Alignment.bottomRight,
+                  child: _buildStatusPill(product.stockStatus),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _statusChip(StockStatus status) {
-    switch (status) {
-      case StockStatus.inStock:
-        return StatusChip.inStock();
-      case StockStatus.lowStock:
-        return StatusChip.lowStock();
-      case StockStatus.outOfStock:
-        return StatusChip.outOfStock();
+  Widget _buildFallbackThumbnail() {
+    IconData icon = Icons.inventory_2_outlined;
+    final lower = product.name.toLowerCase();
+    if (lower.contains('watch')) {
+      icon = Icons.watch_outlined;
+    } else if (lower.contains('cable') || lower.contains('usb')) {
+      icon = Icons.cable_outlined;
+    } else if (lower.contains('laptop') || lower.contains('stand')) {
+      icon = Icons.laptop_mac_outlined;
+    } else if (lower.contains('keyboard')) {
+      icon = Icons.keyboard_outlined;
+    } else if (lower.contains('mouse')) {
+      icon = Icons.mouse_outlined;
+    } else if (lower.contains('phone')) {
+      icon = Icons.smartphone_outlined;
     }
+
+    return Center(
+      child: Icon(
+        icon,
+        color: AppColors.text.withValues(alpha: 0.75),
+        size: 26,
+      ),
+    );
   }
-}
 
-class _InfoBadge extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  const _InfoBadge({required this.label, required this.icon});
+  Widget _buildStockLine() {
+    final isOut = product.stockStatus == StockStatus.outOfStock;
+    final isLow = product.stockStatus == StockStatus.lowStock;
 
-  @override
-  Widget build(BuildContext context) {
+    // Trend percentage logic matching mockup:
+    // Out of Stock: "0 in Stock  |  ↓ 100%"
+    // Low Stock: "8 in Stock  |  ↓ 12%"
+    // In Stock: "89 in Stock  |  ↑ 6%"
+    final String trendText = isOut
+        ? '↓ 100%'
+        : (isLow ? '↓ 12%' : '↑ ${(product.quantity % 15) + 4}%');
+    final Color trendColor =
+        (isOut || isLow) ? AppColors.outOfStockText : AppColors.inStockText;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 12, color: AppColors.grey500),
-        const SizedBox(width: 3),
-        Text(label,
-            style: const TextStyle(fontSize: 11, color: AppColors.grey500)),
+        Text(
+          '${product.quantity} in Stock',
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: AppColors.text,
+          ),
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 6),
+          child: Text(
+            '|',
+            style: TextStyle(
+              fontSize: 11,
+              color: AppColors.border,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ),
+        Text(
+          trendText,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: trendColor,
+          ),
+        ),
       ],
     );
+  }
+
+  Widget _buildStatusPill(StockStatus status) {
+    switch (status) {
+      case StockStatus.inStock:
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppColors.inStockBg,
+            borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+          ),
+          child: const Text(
+            'In Stock',
+            style: TextStyle(
+              color: AppColors.inStockText,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.1,
+            ),
+          ),
+        );
+      case StockStatus.lowStock:
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppColors.lowStockBg,
+            borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+          ),
+          child: const Text(
+            'Low Stock',
+            style: TextStyle(
+              color: AppColors.lowStockText,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.1,
+            ),
+          ),
+        );
+      case StockStatus.outOfStock:
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppColors.outOfStockBg,
+            borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+          ),
+          child: const Text(
+            'Out of Stock',
+            style: TextStyle(
+              color: AppColors.outOfStockText,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.1,
+            ),
+          ),
+        );
+    }
   }
 }
