@@ -280,43 +280,20 @@ class SettingsScreen extends StatelessWidget {
                   controller: urlCtrl,
                   decoration: const InputDecoration(
                     labelText: 'Base URL',
-                    hintText: 'http://${AppConstants.hostWifiIp}:8080/api/v1',
+                    hintText: AppConstants.baseUrl,
                     border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 6,
-                  runSpacing: 6,
                   children: [
                     ActionChip(
-                      label: const Text('Android Emulator (10.0.2.2)', style: TextStyle(fontSize: 11)),
-                      avatar: const Icon(Icons.phone_android, size: 14),
+                      label: const Text('Default IP (192.168.0.242)', style: TextStyle(fontSize: 11)),
+                      avatar: const Icon(Icons.refresh, size: 14),
                       onPressed: () {
                         setDialogState(() {
-                          urlCtrl.text = 'http://10.0.2.2:8080/api/v1';
-                          testSuccess = null;
-                          testMessage = null;
-                        });
-                      },
-                    ),
-                    ActionChip(
-                      label: const Text('USB Phone (adb reverse)', style: TextStyle(fontSize: 11)),
-                      avatar: const Icon(Icons.usb, size: 14),
-                      onPressed: () {
-                        setDialogState(() {
-                          urlCtrl.text = 'http://localhost:8080/api/v1';
-                          testSuccess = null;
-                          testMessage = null;
-                        });
-                      },
-                    ),
-                    ActionChip(
-                      label: const Text('Wi-Fi Phone (${AppConstants.hostWifiIp})', style: TextStyle(fontSize: 11)),
-                      avatar: const Icon(Icons.wifi, size: 14),
-                      onPressed: () {
-                        setDialogState(() {
-                          urlCtrl.text = 'http://${AppConstants.hostWifiIp}:8080/api/v1';
+                          urlCtrl.text = AppConstants.baseUrl;
                           testSuccess = null;
                           testMessage = null;
                         });

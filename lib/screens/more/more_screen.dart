@@ -263,8 +263,10 @@ class MoreScreen extends StatelessWidget {
       confirmColor: AppColors.outOfStockText,
     );
     if (confirmed && context.mounted) {
-      auth.logout();
-      context.go('/login');
+      await auth.logout();
+      if (context.mounted) {
+        context.go('/login');
+      }
     }
   }
 }

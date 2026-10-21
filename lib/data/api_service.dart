@@ -40,12 +40,18 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       _token = prefs.getString(_prefTokenKey);
       final savedBaseUrl = prefs.getString(_prefBaseUrlKey);
-      if (savedBaseUrl != null && savedBaseUrl.trim().isNotEmpty) {
+      if (savedBaseUrl != null &&
+          savedBaseUrl.trim().isNotEmpty &&
+          !savedBaseUrl.contains('192.168.45.68') &&
+          !savedBaseUrl.contains('10.0.2.2')) {
         _baseUrl = savedBaseUrl.trim();
       } else {
         _baseUrl = AppConstants.defaultBaseUrl;
+        await prefs.setString(_prefBaseUrlKey, _baseUrl);
       }
-    } catch (_) {}
+    } catch (_) {
+      _baseUrl = AppConstants.defaultBaseUrl;
+    }
   }
 
   /// Update JWT token

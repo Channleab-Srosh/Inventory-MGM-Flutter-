@@ -610,10 +610,10 @@ class AuthProvider extends ChangeNotifier {
 
   /// Logout
   Future<void> logout() async {
-    await _api.clearToken();
     _isAuthenticated = false;
     _user = null;
     _error = null;
     notifyListeners();
+    await _api.clearToken();
   }
 }
