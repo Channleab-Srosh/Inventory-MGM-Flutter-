@@ -1,5 +1,4 @@
 import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 /// App-wide constants
 class AppConstants {
@@ -8,19 +7,39 @@ class AppConstants {
   static const appVersion = '1.0.0';
 
   // API Configuration
-  static const hostWifiIp = '192.168.45.68';
+  // Environment variable override (e.g. `flutter run --dart-define=API_BASE_URL=https://...`)
+  static const String envBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+
+  // Current local LAN IP of developer machine
+  static const hostWifiIp = '192.168.0.242';
   static const defaultPort = '8080';
 
-  static const List<String> candidateBaseUrls = [
-    'http://localhost:8080/api/v1',
-    'http://192.168.45.68:8080/api/v1',
-    'http://10.0.2.2:8080/api/v1',
-  ];
+  /// Intelligent list of candidate base URLs probed during auto-detection
+  static List<String> get candidateBaseUrls {
+    final list = <String>[];
+    if (envBaseUrl.isNotEmpty) list.add(envBaseUrl);
 
+    // Prioritized Android targets
+    list.addAll([
+      'http://10.0.2.2:8080/api/v1',       // Android Emulator (Default)
+      'http://localhost:8080/api/v1',      // Physical phone with `adb reverse` / test runner
+      'http://127.0.0.1:8080/api/v1',      // Physical phone loopback
+      'http://192.168.0.242:8080/api/v1',  // Physical phone via host Wi-Fi LAN
+      'http://10.0.3.2:8080/api/v1',       // Genymotion emulator loopback
+      'http://192.168.45.68:8080/api/v1',  // Fallback LAN IP
+    ]);
+
+    return list.toSet().toList();
+  }
+
+  /// Default base URL based on platform and environment
   static String get defaultBaseUrl {
-    if (kIsWeb) return 'http://localhost:8080/api/v1';
+    if (envBaseUrl.isNotEmpty) return envBaseUrl;
     try {
-      if (Platform.isAndroid) return 'http://192.168.45.68:8080/api/v1';
+      if (Platform.isAndroid) {
+        // Android Emulator connects to host computer localhost via 10.0.2.2
+        return 'http://10.0.2.2:8080/api/v1';
+      }
     } catch (_) {}
     return 'http://localhost:8080/api/v1';
   }

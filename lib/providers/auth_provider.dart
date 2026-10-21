@@ -144,11 +144,14 @@ class AuthProvider extends ChangeNotifier {
         _error = e.message;
       } else {
         final raw = e.toString().replaceFirst('Exception: ', '');
-        if (raw.toLowerCase().contains('failed host lookup') ||
-            raw.toLowerCase().contains('connection refused') ||
-            raw.toLowerCase().contains('socketexception') ||
-            raw.toLowerCase().contains('clientexception')) {
-          _error = 'Unable to connect to backend server at ${_api.baseUrl}. Please check that the server is running.';
+        final lower = raw.toLowerCase();
+        if (lower.contains('failed host lookup') ||
+            lower.contains('connection refused') ||
+            lower.contains('socketexception') ||
+            lower.contains('clientexception') ||
+            lower.contains('timeoutexception') ||
+            lower.contains('timed out')) {
+          _error = 'Unable to connect to backend server at ${_api.baseUrl} (Timed out). Please check that the server is running or update your server IP.';
         } else {
           _error = raw;
         }

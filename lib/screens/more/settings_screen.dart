@@ -280,7 +280,7 @@ class SettingsScreen extends StatelessWidget {
                   controller: urlCtrl,
                   decoration: const InputDecoration(
                     labelText: 'Base URL',
-                    hintText: 'http://192.168.0.242:8080/api/v1',
+                    hintText: 'http://${AppConstants.hostWifiIp}:8080/api/v1',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -290,18 +290,18 @@ class SettingsScreen extends StatelessWidget {
                   runSpacing: 6,
                   children: [
                     ActionChip(
-                      label: const Text('Wi-Fi (192.168.0.242)', style: TextStyle(fontSize: 11)),
-                      avatar: const Icon(Icons.wifi, size: 14),
+                      label: const Text('Android Emulator (10.0.2.2)', style: TextStyle(fontSize: 11)),
+                      avatar: const Icon(Icons.phone_android, size: 14),
                       onPressed: () {
                         setDialogState(() {
-                          urlCtrl.text = 'http://192.168.0.242:8080/api/v1';
+                          urlCtrl.text = 'http://10.0.2.2:8080/api/v1';
                           testSuccess = null;
                           testMessage = null;
                         });
                       },
                     ),
                     ActionChip(
-                      label: const Text('Localhost (adb reverse)', style: TextStyle(fontSize: 11)),
+                      label: const Text('USB Phone (adb reverse)', style: TextStyle(fontSize: 11)),
                       avatar: const Icon(Icons.usb, size: 14),
                       onPressed: () {
                         setDialogState(() {
@@ -312,11 +312,11 @@ class SettingsScreen extends StatelessWidget {
                       },
                     ),
                     ActionChip(
-                      label: const Text('Emulator (10.0.2.2)', style: TextStyle(fontSize: 11)),
-                      avatar: const Icon(Icons.phone_android, size: 14),
+                      label: const Text('Wi-Fi Phone (${AppConstants.hostWifiIp})', style: TextStyle(fontSize: 11)),
+                      avatar: const Icon(Icons.wifi, size: 14),
                       onPressed: () {
                         setDialogState(() {
-                          urlCtrl.text = 'http://10.0.2.2:8080/api/v1';
+                          urlCtrl.text = 'http://${AppConstants.hostWifiIp}:8080/api/v1';
                           testSuccess = null;
                           testMessage = null;
                         });

@@ -40,12 +40,14 @@ class _LoginScreenState extends State<LoginScreen> {
     final auth = context.read<AuthProvider>();
     final ok = await auth.login(_emailCtrl.text.trim(), _passCtrl.text);
     if (ok && mounted) {
-      await Future.wait([
-        context.read<CategoryProvider>().fetchCategories(),
-        context.read<SupplierProvider>().fetchSuppliers(),
-        context.read<ProductProvider>().fetchProducts(),
-        context.read<StockProvider>().fetchMovements(),
-      ]);
+      try {
+        await Future.wait([
+          context.read<CategoryProvider>().fetchCategories(),
+          context.read<SupplierProvider>().fetchSuppliers(),
+          context.read<ProductProvider>().fetchProducts(),
+          context.read<StockProvider>().fetchMovements(),
+        ]).timeout(const Duration(seconds: 8));
+      } catch (_) {}
       if (mounted) {
         context.go('/dashboard');
       }
@@ -97,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: urlCtrl,
                   decoration: const InputDecoration(
                     labelText: 'Base URL',
-                    hintText: 'http://192.168.0.242:8080/api/v1',
+                    hintText: 'http://${AppConstants.hostWifiIp}:8080/api/v1',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -107,18 +109,18 @@ class _LoginScreenState extends State<LoginScreen> {
                   runSpacing: 6,
                   children: [
                     ActionChip(
-                      label: const Text('Wi-Fi (192.168.0.242)', style: TextStyle(fontSize: 11)),
-                      avatar: const Icon(Icons.wifi, size: 14),
+                      label: const Text('Android Emulator (10.0.2.2)', style: TextStyle(fontSize: 11)),
+                      avatar: const Icon(Icons.phone_android, size: 14),
                       onPressed: () {
                         setDialogState(() {
-                          urlCtrl.text = 'http://192.168.0.242:8080/api/v1';
+                          urlCtrl.text = 'http://10.0.2.2:8080/api/v1';
                           testSuccess = null;
                           testMessage = null;
                         });
                       },
                     ),
                     ActionChip(
-                      label: const Text('Localhost (adb reverse)', style: TextStyle(fontSize: 11)),
+                      label: const Text('USB Phone (adb reverse)', style: TextStyle(fontSize: 11)),
                       avatar: const Icon(Icons.usb, size: 14),
                       onPressed: () {
                         setDialogState(() {
@@ -129,11 +131,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                     ),
                     ActionChip(
-                      label: const Text('Emulator (10.0.2.2)', style: TextStyle(fontSize: 11)),
-                      avatar: const Icon(Icons.phone_android, size: 14),
+                      label: const Text('Wi-Fi Phone (${AppConstants.hostWifiIp})', style: TextStyle(fontSize: 11)),
+                      avatar: const Icon(Icons.wifi, size: 14),
                       onPressed: () {
                         setDialogState(() {
-                          urlCtrl.text = 'http://10.0.2.2:8080/api/v1';
+                          urlCtrl.text = 'http://${AppConstants.hostWifiIp}:8080/api/v1';
                           testSuccess = null;
                           testMessage = null;
                         });
@@ -348,7 +350,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               ],
                             ),
-                            if (auth.error!.contains('Unable to connect')) ...[
+                            if (auth.error!.toLowerCase().contains('connect') ||
+                                auth.error!.toLowerCase().contains('time') ||
+                                auth.error!.toLowerCase().contains('server')) ...[
                               const SizedBox(height: 8),
                               Wrap(
                                 spacing: 8,

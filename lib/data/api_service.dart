@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -31,14 +32,18 @@ class ApiService {
   String? get token => _token;
   bool get hasToken => _token != null && _token!.isNotEmpty;
 
+  static const Duration defaultTimeout = Duration(seconds: 5);
+
   /// Initialize service from local storage
   Future<void> init() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       _token = prefs.getString(_prefTokenKey);
       final savedBaseUrl = prefs.getString(_prefBaseUrlKey);
-      if (savedBaseUrl != null && savedBaseUrl.isNotEmpty) {
-        _baseUrl = savedBaseUrl;
+      if (savedBaseUrl != null && savedBaseUrl.trim().isNotEmpty) {
+        _baseUrl = savedBaseUrl.trim();
+      } else {
+        _baseUrl = AppConstants.defaultBaseUrl;
       }
     } catch (_) {}
   }
@@ -63,7 +68,8 @@ class ApiService {
 
   /// Update base URL (e.g. for switching between localhost, emulator, or production)
   Future<void> setBaseUrl(String url) async {
-    _baseUrl = url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+    final clean = url.trim();
+    _baseUrl = clean.endsWith('/') ? clean.substring(0, clean.length - 1) : clean;
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_prefBaseUrlKey, _baseUrl);
@@ -120,7 +126,7 @@ class ApiService {
     throw ApiException(errorMessage, statusCode: response.statusCode, errors: errors);
   }
 
-  /// Check if an exception is a network unreachable / connection refused error
+  /// Check if an exception is a network unreachable / connection refused / timeout error
   bool _isConnectionError(Object e) {
     final s = e.toString().toLowerCase();
     return s.contains('socketexception') ||
@@ -129,45 +135,99 @@ class ApiService {
         s.contains('failed host lookup') ||
         s.contains('network is unreachable') ||
         s.contains('connection reset') ||
+        s.contains('timeoutexception') ||
+        s.contains('timed out') ||
+        s.contains('deadline exceeded') ||
+        s.contains('handshakeexception') ||
+        s.contains('httpexception') ||
         s.contains('os error');
   }
 
   /// Live connection check against candidate base URL
   Future<bool> checkConnection([String? candidateUrl]) async {
     final target = (candidateUrl ?? _baseUrl).trim();
+    if (target.isEmpty) return false;
+    final cleanUrl = target.endsWith('/') ? target.substring(0, target.length - 1) : target;
+
     try {
-      final cleanUrl = target.endsWith('/') ? target.substring(0, target.length - 1) : target;
-      final uri = Uri.parse('$cleanUrl/auth/login');
-      final res = await http.get(uri).timeout(const Duration(seconds: 2));
-      return res.statusCode > 0 && res.statusCode < 500;
-    } catch (_) {
+      // 1. Probe categories endpoint (GET /categories returns 401 Unauthorized when alive)
+      final uri = Uri.parse('$cleanUrl/categories');
+      final res = await http.get(uri).timeout(const Duration(milliseconds: 1500));
+      return res.statusCode > 0;
+    } catch (e) {
+      // If the host is unreachable, connection refused, or timed out, fail fast
+      if (_isConnectionError(e)) {
+        return false;
+      }
       try {
-        final cleanUrl = target.endsWith('/') ? target.substring(0, target.length - 1) : target;
-        final uri = Uri.parse('$cleanUrl/categories');
-        final res = await http.get(uri).timeout(const Duration(seconds: 2));
-        return res.statusCode > 0 && res.statusCode < 500;
+        // 2. Fallback probe: auth/login with empty POST
+        final uri = Uri.parse('$cleanUrl/auth/login');
+        final res = await http.post(
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: '{}',
+        ).timeout(const Duration(milliseconds: 1500));
+        return res.statusCode > 0;
       } catch (_) {
         return false;
       }
     }
   }
 
-  /// Probe known candidate URLs and automatically switch to the reachable one
-  Future<String?> findWorkingBaseUrl() async {
-    final candidates = [
+  /// Probe known candidate URLs safely and automatically switch to the reachable one
+  Future<String?> findWorkingBaseUrl({List<String>? extraCandidates}) async {
+    final allCandidates = [
+      if (extraCandidates != null) ...extraCandidates,
       _baseUrl,
       ...AppConstants.candidateBaseUrls,
-    ];
+    ].where((u) => u.trim().isNotEmpty).toSet().toList();
 
-    for (final url in candidates.toSet()) {
-      if (await checkConnection(url)) {
-        if (url != _baseUrl) {
-          await setBaseUrl(url);
-        }
-        return url;
-      }
+    // If current baseUrl works, keep it
+    if (await checkConnection(_baseUrl)) {
+      return _baseUrl;
     }
-    return null;
+
+    // Probe remaining candidates concurrently
+    final remaining = allCandidates.where((u) => u != _baseUrl).toList();
+    if (remaining.isEmpty) return null;
+
+    final completer = Completer<String?>();
+    int pending = remaining.length;
+
+    for (final url in remaining) {
+      checkConnection(url).then((ok) {
+        if (!completer.isCompleted) {
+          if (ok) {
+            completer.complete(url);
+          } else {
+            pending--;
+            if (pending <= 0) {
+              completer.complete(null);
+            }
+          }
+        }
+      }).catchError((_) {
+        if (!completer.isCompleted) {
+          pending--;
+          if (pending <= 0) {
+            completer.complete(null);
+          }
+        }
+      });
+    }
+
+    // Safety timeout: guarantee completer completes without hanging
+    Future.delayed(const Duration(milliseconds: 3500), () {
+      if (!completer.isCompleted) {
+        completer.complete(null);
+      }
+    });
+
+    final workingUrl = await completer.future;
+    if (workingUrl != null && workingUrl != _baseUrl) {
+      await setBaseUrl(workingUrl);
+    }
+    return workingUrl;
   }
 
   /// Execute HTTP request with automatic fallback candidate probing on connection failure
@@ -183,6 +243,18 @@ class ApiService {
         if (working != null && working != _baseUrl) {
           final retryResponse = await requestFn(working);
           return _processResponse(retryResponse);
+        }
+        final errStr = e.toString().toLowerCase();
+        if (errStr.contains('timeout') || e is TimeoutException) {
+          throw ApiException(
+            'Connection timed out to $_baseUrl. The server did not respond. Check that your backend is running or change server IP.',
+            statusCode: 408,
+          );
+        } else if (errStr.contains('refused') || errStr.contains('socketexception') || errStr.contains('failed host lookup')) {
+          throw ApiException(
+            'Cannot connect to backend server at $_baseUrl. Please check that the server is running.',
+            statusCode: 503,
+          );
         }
       }
       rethrow;
@@ -202,7 +274,7 @@ class ApiService {
         });
         uri = uri.replace(queryParameters: cleanParams);
       }
-      return http.get(uri, headers: _buildHeaders());
+      return http.get(uri, headers: _buildHeaders()).timeout(defaultTimeout);
     });
   }
 
@@ -213,7 +285,7 @@ class ApiService {
         uri,
         headers: _buildHeaders(),
         body: body != null ? jsonEncode(body) : null,
-      );
+      ).timeout(defaultTimeout);
     });
   }
 
@@ -224,14 +296,14 @@ class ApiService {
         uri,
         headers: _buildHeaders(),
         body: body != null ? jsonEncode(body) : null,
-      );
+      ).timeout(defaultTimeout);
     });
   }
 
   Future<dynamic> delete(String endpoint) async {
     return _executeWithFallback((base) {
       final uri = Uri.parse('$base$endpoint');
-      return http.delete(uri, headers: _buildHeaders());
+      return http.delete(uri, headers: _buildHeaders()).timeout(defaultTimeout);
     });
   }
 

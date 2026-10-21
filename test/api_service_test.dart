@@ -18,6 +18,24 @@ void main() {
   group('Backend API Integration Tests', () {
     final api = ApiService();
 
+    test('Live connection checking and auto-detecting', () async {
+      // Valid local server should report connected
+      final isLocalReachable = await api.checkConnection('http://localhost:8080/api/v1');
+      expect(isLocalReachable, isTrue);
+
+      // Dead or unroutable IP should fail fast (under 4 seconds)
+      final stopwatch = Stopwatch()..start();
+      final isBogusReachable = await api.checkConnection('http://192.0.2.1:8080/api/v1');
+      stopwatch.stop();
+      expect(isBogusReachable, isFalse);
+      expect(stopwatch.elapsedMilliseconds, lessThan(4000));
+
+      // findWorkingBaseUrl should discover localhost:8080
+      final detected = await api.findWorkingBaseUrl();
+      expect(detected, isNotNull);
+      expect(detected, contains(':8080'));
+    });
+
     test('Login and fetch profile from real backend', () async {
       final loginData = await api.login(
         AppConstants.defaultAdminUsername,
