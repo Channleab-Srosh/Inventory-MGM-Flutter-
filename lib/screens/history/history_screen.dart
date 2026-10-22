@@ -5,6 +5,7 @@ import '../../providers/stock_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/responsive.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../models/stock_movement.dart';
 import 'widgets/movement_detail_card.dart';
@@ -92,15 +93,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
     final sortedKeys = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
+    final hPad = AppResponsive.screenPadding(context);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Column(
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
-              child: Row(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: AppResponsive.contentMaxWidth(context)),
+            child: Column(
+              children: [
+                // Header
+                Padding(
+                  padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 0),
+                  child: Row(
                 children: [
                   if (Navigator.of(context).canPop())
                     GestureDetector(
@@ -207,7 +213,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             if (_showSearch) ...[
               const SizedBox(height: 10),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18),
+                padding: EdgeInsets.symmetric(horizontal: hPad),
                 child: SearchField(
                   controller: _searchCtrl,
                   hint: 'Search product, user, or reference...',
@@ -219,7 +225,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             // Active filter pill banner
             if (hasActiveFilters)
               Padding(
-                padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+                padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 0),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
@@ -348,7 +354,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   ],
                                 )
                               : ListView.builder(
-                                  padding: const EdgeInsets.fromLTRB(18, 4, 18, 88),
+                                  padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 88),
                                   itemCount: sortedKeys.length,
                                   itemBuilder: (_, dayIdx) {
                                     final key = sortedKeys[dayIdx];
@@ -410,6 +416,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ],
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }

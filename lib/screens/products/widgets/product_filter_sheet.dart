@@ -75,14 +75,17 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
-        ),
-        padding: const EdgeInsets.all(20),
-        child: ListView(
-          shrinkWrap: true,
-          children: [
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 540,
+            maxHeight: MediaQuery.of(context).size.height * 0.85,
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            child: ListView(
+              shrinkWrap: true,
+              children: [
             Center(
               child: Container(
                 width: 40,
@@ -171,6 +174,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
+              runSpacing: 8,
               children: [
                 ChoiceChip(
                   label: const Text('All Status'),
@@ -219,6 +223,8 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
           ],
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }

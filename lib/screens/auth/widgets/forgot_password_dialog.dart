@@ -336,30 +336,43 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
 
   Widget _buildStepIndicator() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         children: [
-          _buildStepItem(0, 'Email', Icons.email_outlined),
-          Expanded(
-            child: Container(
-              height: 2,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              color: _currentStep >= 1 ? AppColors.primary : Colors.grey.shade300,
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: _buildStepItem(0, 'Email', Icons.email_outlined),
             ),
           ),
-          _buildStepItem(1, 'Verify OTP', Icons.pin_outlined),
-          Expanded(
-            child: Container(
-              height: 2,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              color: _currentStep >= 2 ? AppColors.primary : Colors.grey.shade300,
+          Container(
+            width: 16,
+            height: 2,
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            color: _currentStep >= 1 ? AppColors.primary : Colors.grey.shade300,
+          ),
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: _buildStepItem(1, 'Verify OTP', Icons.pin_outlined),
             ),
           ),
-          _buildStepItem(2, 'New Password', Icons.lock_outline),
+          Container(
+            width: 16,
+            height: 2,
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            color: _currentStep >= 2 ? AppColors.primary : Colors.grey.shade300,
+          ),
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: _buildStepItem(2, 'New Password', Icons.lock_outline),
+            ),
+          ),
         ],
       ),
     );
@@ -624,8 +637,9 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
           const SizedBox(height: 10),
 
           // Resend OTP action
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               const Text("Didn't receive the OTP? ", style: TextStyle(fontSize: 12)),
               TextButton(

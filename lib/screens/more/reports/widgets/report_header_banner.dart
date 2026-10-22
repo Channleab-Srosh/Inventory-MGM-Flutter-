@@ -28,15 +28,19 @@ class ReportHeaderBanner extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
@@ -88,9 +92,22 @@ class ReportLegendItem extends StatelessWidget {
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 8),
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-        const Spacer(),
-        Text('$count items', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 8),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            '$count items',
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+          ),
+        ),
       ],
     );
   }

@@ -127,55 +127,80 @@ class _StockInFormState extends State<StockInForm> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      Column(
-                        children: [
-                          const Text('Current Stock',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.secondaryText)),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${_selectedProduct!.quantity} ${_selectedProduct!.unit}',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w700, fontSize: 16),
-                          ),
-                        ],
+                      Expanded(
+                        child: Column(
+                          children: [
+                            const Text('Current Stock',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.secondaryText)),
+                            const SizedBox(height: 2),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                '${_selectedProduct!.quantity} ${_selectedProduct!.unit}',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700, fontSize: 16),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const Icon(Icons.add,
-                          size: 18, color: AppColors.success),
-                      Column(
-                        children: [
-                          const Text('Quantity',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.secondaryText)),
-                          const SizedBox(height: 2),
-                          Text(
-                            '+$_quantity ${_selectedProduct!.unit}',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
-                                color: AppColors.success),
-                          ),
-                        ],
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 4),
+                        child: Icon(Icons.add, size: 16, color: AppColors.success),
                       ),
-                      const Icon(Icons.arrow_forward,
-                          size: 18, color: AppColors.secondaryText),
-                      Column(
-                        children: [
-                          const Text('New Stock',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.secondaryText)),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${_selectedProduct!.quantity + _quantity} ${_selectedProduct!.unit}',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
-                                color: AppColors.primary),
-                          ),
-                        ],
+                      Expanded(
+                        child: Column(
+                          children: [
+                            const Text('Quantity',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.secondaryText)),
+                            const SizedBox(height: 2),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                '+$_quantity ${_selectedProduct!.unit}',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 16,
+                                    color: AppColors.success),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 4),
+                        child: Icon(Icons.arrow_forward, size: 16, color: AppColors.secondaryText),
+                      ),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            const Text('New Stock',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.secondaryText)),
+                            const SizedBox(height: 2),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                '${_selectedProduct!.quantity + _quantity} ${_selectedProduct!.unit}',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 16,
+                                    color: AppColors.primary),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -185,13 +210,17 @@ class _StockInFormState extends State<StockInForm> {
 
               // Supplier
               DropdownButtonFormField<String>(
+                isExpanded: true,
                 initialValue: _selectedSupplierId,
                 decoration:
                     const InputDecoration(labelText: 'Supplier (optional)'),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('None')),
                   ...suppliers.map((s) =>
-                      DropdownMenuItem(value: s.id, child: Text(s.name))),
+                      DropdownMenuItem(
+                        value: s.id,
+                        child: Text(s.name, overflow: TextOverflow.ellipsis),
+                      )),
                 ],
                 onChanged: (v) => setState(() => _selectedSupplierId = v),
               ),
@@ -200,13 +229,17 @@ class _StockInFormState extends State<StockInForm> {
               // Quantity
               Row(
                 children: [
-                  Text(
-                    _selectedProduct != null
-                        ? 'Quantity (${_selectedProduct!.unit})'
-                        : 'Quantity',
-                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  Expanded(
+                    child: Text(
+                      _selectedProduct != null
+                          ? 'Quantity (${_selectedProduct!.unit})'
+                          : 'Quantity',
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   QuantityStepper(
                     value: _quantity,
                     onChanged: (v) => setState(() => _quantity = v),

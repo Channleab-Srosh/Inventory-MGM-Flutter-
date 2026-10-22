@@ -46,35 +46,53 @@ class TransactionHistoryReportTab extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
-        Row(
-          children: [
-            Expanded(
-              child: SummaryCard(
-                title: 'Total In',
-                value: '+$totalIn',
-                icon: Icons.arrow_downward,
-                color: AppColors.chartIn,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: SummaryCard(
-                title: 'Total Out',
-                value: '-$totalOut',
-                icon: Icons.arrow_upward,
-                color: AppColors.chartOut,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: SummaryCard(
-                title: 'Net Change',
-                value: '${netChange >= 0 ? "+" : ""}$netChange',
-                icon: Icons.swap_vert,
-                color: netChange >= 0 ? AppColors.inStock : AppColors.danger,
-              ),
-            ),
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final cardIn = SummaryCard(
+              title: 'Total In',
+              value: '+$totalIn',
+              icon: Icons.arrow_downward,
+              color: AppColors.chartIn,
+            );
+            final cardOut = SummaryCard(
+              title: 'Total Out',
+              value: '-$totalOut',
+              icon: Icons.arrow_upward,
+              color: AppColors.chartOut,
+            );
+            final cardNet = SummaryCard(
+              title: 'Net Change',
+              value: '${netChange >= 0 ? "+" : ""}$netChange',
+              icon: Icons.swap_vert,
+              color: netChange >= 0 ? AppColors.inStock : AppColors.danger,
+            );
+
+            if (constraints.maxWidth < 440) {
+              return Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: cardIn),
+                      const SizedBox(width: 8),
+                      Expanded(child: cardOut),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  cardNet,
+                ],
+              );
+            }
+
+            return Row(
+              children: [
+                Expanded(child: cardIn),
+                const SizedBox(width: 8),
+                Expanded(child: cardOut),
+                const SizedBox(width: 8),
+                Expanded(child: cardNet),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 20),
 

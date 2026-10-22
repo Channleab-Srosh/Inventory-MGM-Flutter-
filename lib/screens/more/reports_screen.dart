@@ -102,42 +102,39 @@ class _ReportsScreenState extends State<ReportsScreen>
               style: TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 10),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.table_chart_outlined,
-                        color: AppColors.inStock),
-                    label: const Text('Excel (CSV)'),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                              '${_getReportTitle(_tabCtrl.index)} exported to CSV successfully!'),
-                          backgroundColor: AppColors.inStockText,
-                        ),
-                      );
-                    },
-                  ),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.table_chart_outlined,
+                      color: AppColors.inStock),
+                  label: const Text('Excel (CSV)'),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                            '${_getReportTitle(_tabCtrl.index)} exported to CSV successfully!'),
+                        backgroundColor: AppColors.inStockText,
+                      ),
+                    );
+                  },
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.picture_as_pdf_outlined,
-                        color: AppColors.outOfStockText),
-                    label: const Text('PDF Document'),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                              '${_getReportTitle(_tabCtrl.index)} exported to PDF successfully!'),
-                          backgroundColor: AppColors.primaryDark,
-                        ),
-                      );
-                    },
-                  ),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.picture_as_pdf_outlined,
+                      color: AppColors.outOfStockText),
+                  label: const Text('PDF Document'),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                            '${_getReportTitle(_tabCtrl.index)} exported to PDF successfully!'),
+                        backgroundColor: AppColors.primaryDark,
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -312,15 +309,20 @@ class _ReportsScreenState extends State<ReportsScreen>
           ),
         ),
       ),
-      body: TabBarView(
-        controller: _tabCtrl,
-        children: [
-          StockSummaryReportTab(dateRange: range, periodLabel: periodLabel),
-          StockInReportTab(dateRange: range, periodLabel: periodLabel),
-          StockOutReportTab(dateRange: range, periodLabel: periodLabel),
-          LowStockReportTab(periodLabel: periodLabel),
-          TransactionHistoryReportTab(dateRange: range, periodLabel: periodLabel),
-        ],
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1000),
+          child: TabBarView(
+            controller: _tabCtrl,
+            children: [
+              StockSummaryReportTab(dateRange: range, periodLabel: periodLabel),
+              StockInReportTab(dateRange: range, periodLabel: periodLabel),
+              StockOutReportTab(dateRange: range, periodLabel: periodLabel),
+              LowStockReportTab(periodLabel: periodLabel),
+              TransactionHistoryReportTab(dateRange: range, periodLabel: periodLabel),
+            ],
+          ),
+        ),
       ),
     );
   }

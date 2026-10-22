@@ -64,8 +64,11 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
           ),
         ),
       ),
-      body: Column(
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 840),
+          child: Column(
+            children: [
           // Filter Chips
           SizedBox(
             height: 46,
@@ -274,64 +277,67 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                               ),
                               if (canManageSuppliers) ...[
                                 const Divider(height: 16),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    TextButton.icon(
-                                      icon: const Icon(Icons.edit_outlined, size: 16),
-                                      label: const Text('Edit'),
-                                      onPressed: () => _openForm(context, s),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    TextButton.icon(
-                                      icon: Icon(
-                                        s.isActive ? Icons.toggle_on : Icons.toggle_off,
-                                        size: 20,
-                                        color: s.isActive ? AppColors.inStock : AppColors.grey500,
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: Wrap(
+                                    alignment: WrapAlignment.end,
+                                    spacing: 4,
+                                    runSpacing: 4,
+                                    children: [
+                                      TextButton.icon(
+                                        icon: const Icon(Icons.edit_outlined, size: 16),
+                                        label: const Text('Edit'),
+                                        onPressed: () => _openForm(context, s),
                                       ),
-                                      label: Text(
-                                        s.isActive ? 'Active' : 'Inactive',
-                                        style: TextStyle(
+                                      TextButton.icon(
+                                        icon: Icon(
+                                          s.isActive ? Icons.toggle_on : Icons.toggle_off,
+                                          size: 20,
                                           color: s.isActive ? AppColors.inStock : AppColors.grey500,
                                         ),
-                                      ),
-                                      onPressed: () {
-                                        prov.toggleSupplierStatus(s.id);
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              '${s.name} is now ${s.isActive ? "Inactive" : "Active"}',
-                                            ),
+                                        label: Text(
+                                          s.isActive ? 'Active' : 'Inactive',
+                                          style: TextStyle(
+                                            color: s.isActive ? AppColors.inStock : AppColors.grey500,
                                           ),
-                                        );
-                                      },
-                                    ),
-                                    const SizedBox(width: 4),
-                                    TextButton.icon(
-                                      icon: const Icon(Icons.delete_outline,
-                                          size: 16, color: AppColors.danger),
-                                      label: const Text('Delete',
-                                          style: TextStyle(color: AppColors.danger)),
-                                      onPressed: () async {
-                                        final confirmed = await ConfirmDialog.show(
-                                          context,
-                                          title: 'Delete Supplier',
-                                          message:
-                                              'Delete "${s.name}"? Products supplied by this vendor will remain in the catalog.',
-                                          confirmLabel: 'Delete',
-                                          confirmColor: AppColors.danger,
-                                        );
-                                        if (confirmed && context.mounted) {
-                                          await prov.deleteSupplier(s.id);
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(content: Text('${s.name} deleted')),
-                                            );
+                                        ),
+                                        onPressed: () {
+                                          prov.toggleSupplierStatus(s.id);
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                '${s.name} is now ${s.isActive ? "Inactive" : "Active"}',
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      TextButton.icon(
+                                        icon: const Icon(Icons.delete_outline,
+                                            size: 16, color: AppColors.danger),
+                                        label: const Text('Delete',
+                                            style: TextStyle(color: AppColors.danger)),
+                                        onPressed: () async {
+                                          final confirmed = await ConfirmDialog.show(
+                                            context,
+                                            title: 'Delete Supplier',
+                                            message:
+                                                'Delete "${s.name}"? Products supplied by this vendor will remain in the catalog.',
+                                            confirmLabel: 'Delete',
+                                            confirmColor: AppColors.danger,
+                                          );
+                                          if (confirmed && context.mounted) {
+                                            await prov.deleteSupplier(s.id);
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(content: Text('${s.name} deleted')),
+                                              );
+                                            }
                                           }
-                                        }
-                                      },
-                                    ),
-                                  ],
+                                        },
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ],
@@ -344,7 +350,9 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
           ),
         ],
       ),
-      floatingActionButton: canManageSuppliers
+    ),
+  ),
+  floatingActionButton: canManageSuppliers
           ? FloatingActionButton.extended(
               onPressed: () => _openForm(context, null),
               backgroundColor: AppColors.primary,
@@ -522,11 +530,14 @@ class _SupplierFormScreenState extends State<_SupplierFormScreen> {
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit Supplier' : 'Add Supplier'),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680),
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
             TextFormField(
               controller: _nameCtrl,
               decoration: const InputDecoration(
@@ -595,6 +606,7 @@ class _SupplierFormScreenState extends State<_SupplierFormScreen> {
             ),
             const SizedBox(height: 14),
             DropdownButtonFormField<String>(
+              isExpanded: true,
               initialValue: _status,
               decoration: const InputDecoration(
                 labelText: 'Status',
@@ -621,6 +633,8 @@ class _SupplierFormScreenState extends State<_SupplierFormScreen> {
           ],
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }

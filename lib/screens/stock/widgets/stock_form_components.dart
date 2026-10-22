@@ -90,57 +90,70 @@ class _ProductSelectorSheetState extends State<ProductSelectorSheet> {
                 p.sku.toLowerCase().contains(_search.toLowerCase()))
             .toList();
 
-    return DraggableScrollableSheet(
-      initialChildSize: 0.7,
-      maxChildSize: 0.95,
-      minChildSize: 0.5,
-      expand: false,
-      builder: (_, controller) => Column(
-        children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: AppColors.grey200,
-              borderRadius: BorderRadius.circular(2),
-            ),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 600),
+        child: DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          maxChildSize: 0.95,
+          minChildSize: 0.5,
+          expand: false,
+          builder: (_, controller) => Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.grey200,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: SearchField(
+                  hint: 'Search products...',
+                  onChanged: (q) => setState(() => _search = q),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: ListView.builder(
+                  controller: controller,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: filtered.length,
+                  itemBuilder: (_, i) {
+                    final p = filtered[i];
+                    return ListTile(
+                      leading: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.inventory_2_outlined,
+                            color: AppColors.primary, size: 20),
+                      ),
+                      title: Text(
+                        p.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        'SKU: ${p.sku} · Qty: ${p.quantity} ${p.unit}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onTap: () => widget.onSelect(p),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SearchField(
-              hint: 'Search products...',
-              onChanged: (q) => setState(() => _search = q),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: ListView.builder(
-              controller: controller,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: filtered.length,
-              itemBuilder: (_, i) {
-                final p = filtered[i];
-                return ListTile(
-                  leading: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.inventory_2_outlined,
-                        color: AppColors.primary, size: 20),
-                  ),
-                  title: Text(p.name),
-                  subtitle: Text('SKU: ${p.sku} · Qty: ${p.quantity} ${p.unit}'),
-                  onTap: () => widget.onSelect(p),
-                );
-              },
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -229,9 +242,16 @@ class StockRecentTile extends StatelessWidget {
             : AppUtils.timeAgo(movement.date),
         style: theme.textTheme.bodyMedium,
       ),
-      trailing: Text(
-        '${isIn ? '+' : '-'}${movement.quantity} ${movement.unit ?? "pcs"}',
-        style: TextStyle(color: color, fontWeight: FontWeight.w700),
+      trailing: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 80),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerRight,
+          child: Text(
+            '${isIn ? '+' : '-'}${movement.quantity} ${movement.unit ?? "pcs"}',
+            style: TextStyle(color: color, fontWeight: FontWeight.w700),
+          ),
+        ),
       ),
     );
   }

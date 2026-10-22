@@ -52,39 +52,48 @@ class _DashboardStockChartState extends State<DashboardStockChart> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Stock Flow',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.4,
-                      color: AppColors.text,
-                    ),
-                  ),
-                  SizedBox(height: 3),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.trending_up_rounded,
-                        size: 14,
-                        color: AppColors.inStockText,
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Stock Flow',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                        color: AppColors.text,
                       ),
-                      SizedBox(width: 4),
-                      Text(
-                        '+18% Rise in Total Inventory Units',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.trending_up_rounded,
+                          size: 14,
                           color: AppColors.inStockText,
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                        SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            '+18% Rise in Total Inventory Units',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.inStockText,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
 
               // Pill dropdown: 'Last 7 days ˅'
               PopupMenuButton<String>(

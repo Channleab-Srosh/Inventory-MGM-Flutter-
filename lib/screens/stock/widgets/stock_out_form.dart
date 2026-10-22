@@ -174,13 +174,17 @@ class _StockOutFormState extends State<StockOutForm> {
 
               Row(
                 children: [
-                  Text(
-                    _selectedProduct != null
-                        ? 'Quantity (${_selectedProduct!.unit})'
-                        : 'Quantity',
-                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  Expanded(
+                    child: Text(
+                      _selectedProduct != null
+                          ? 'Quantity (${_selectedProduct!.unit})'
+                          : 'Quantity',
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   QuantityStepper(
                     value: _quantity,
                     max: availableQty > 0 ? availableQty : 1,
@@ -196,6 +200,7 @@ class _StockOutFormState extends State<StockOutForm> {
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
+                runSpacing: 8,
                 children: StockOutReason.values.map((r) {
                   final label = _reasonLabel(r);
                   return ChoiceChip(

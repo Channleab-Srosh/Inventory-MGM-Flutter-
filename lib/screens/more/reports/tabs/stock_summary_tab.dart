@@ -101,9 +101,9 @@ class StockSummaryReportTab extends StatelessWidget {
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                SizedBox(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final pieWidget = SizedBox(
                   width: 130,
                   height: 130,
                   child: PieChart(
@@ -135,33 +135,49 @@ class StockSummaryReportTab extends StatelessWidget {
                       ],
                     ),
                   ),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                );
+
+                final legendWidget = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ReportLegendItem(
+                      label: 'In Stock',
+                      count: inStockCount,
+                      color: AppColors.inStock,
+                    ),
+                    const SizedBox(height: 8),
+                    ReportLegendItem(
+                      label: 'Low Stock',
+                      count: lowStockCount,
+                      color: AppColors.warning,
+                    ),
+                    const SizedBox(height: 8),
+                    ReportLegendItem(
+                      label: 'Out of Stock',
+                      count: outOfStockCount,
+                      color: AppColors.danger,
+                    ),
+                  ],
+                );
+
+                if (constraints.maxWidth < 340) {
+                  return Column(
                     children: [
-                      ReportLegendItem(
-                        label: 'In Stock',
-                        count: inStockCount,
-                        color: AppColors.inStock,
-                      ),
-                      const SizedBox(height: 8),
-                      ReportLegendItem(
-                        label: 'Low Stock',
-                        count: lowStockCount,
-                        color: AppColors.warning,
-                      ),
-                      const SizedBox(height: 8),
-                      ReportLegendItem(
-                        label: 'Out of Stock',
-                        count: outOfStockCount,
-                        color: AppColors.danger,
-                      ),
+                      Center(child: pieWidget),
+                      const SizedBox(height: 16),
+                      legendWidget,
                     ],
-                  ),
-                ),
-              ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    pieWidget,
+                    const SizedBox(width: 20),
+                    Expanded(child: legendWidget),
+                  ],
+                );
+              },
             ),
           ),
         ),

@@ -17,6 +17,9 @@ class LowStockHorizontalList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lowStockItems = products.lowStockProducts;
+    final textScale =
+        MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.4);
+    final carouselHeight = (116.0 * textScale).clamp(116.0, 144.0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -49,12 +52,16 @@ class LowStockHorizontalList extends StatelessWidget {
                   size: 22,
                 ),
                 SizedBox(width: 12),
-                Text(
-                  'All products have healthy stock levels',
-                  style: TextStyle(
-                    color: AppColors.secondaryText,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 13,
+                Expanded(
+                  child: Text(
+                    'All products have healthy stock levels',
+                    style: TextStyle(
+                      color: AppColors.secondaryText,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 13,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -62,7 +69,7 @@ class LowStockHorizontalList extends StatelessWidget {
           )
         else
           SizedBox(
-            height: 114,
+            height: carouselHeight,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
@@ -110,6 +117,8 @@ class LowStockHorizontalList extends StatelessWidget {
                               fontSize: 11,
                               color: AppColors.secondaryText,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           const Spacer(),
                           Container(

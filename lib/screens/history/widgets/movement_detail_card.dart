@@ -85,12 +85,15 @@ class MovementDetailCard extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      '$sign${movement.quantity}',
-                      style: TextStyle(
-                        color: color,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        '$sign${movement.quantity}',
+                        style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                        ),
                       ),
                     ),
                     Text(
@@ -99,6 +102,8 @@ class MovementDetailCard extends StatelessWidget {
                         color: AppColors.secondaryText,
                         fontSize: 10,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -115,33 +120,32 @@ class MovementDetailCard extends StatelessWidget {
                 color: AppColors.background,
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 4,
                 children: [
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       const Text(
                         'Before: ',
-                        style:
-                            TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                        style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
                       ),
                       Text(
                         movement.stockBefore != null
                             ? '${movement.stockBefore} ${movement.unit ?? ""}'
                             : '-',
-                        style: const TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.bold),
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                       ),
-                    ],
-                  ),
-                  const Icon(Icons.arrow_forward,
-                      size: 14, color: AppColors.grey500),
-                  Row(
-                    children: [
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 6),
+                        child: Icon(Icons.arrow_forward, size: 13, color: AppColors.grey500),
+                      ),
                       const Text(
                         'After: ',
-                        style:
-                            TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                        style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
                       ),
                       Text(
                         movement.stockAfter != null
@@ -156,14 +160,13 @@ class MovementDetailCard extends StatelessWidget {
                     ],
                   ),
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.person_outline,
-                          size: 13, color: AppColors.grey500),
+                      const Icon(Icons.person_outline, size: 13, color: AppColors.grey500),
                       const SizedBox(width: 4),
                       Text(
                         movement.userName,
-                        style: const TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.w500),
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
                       ),
                     ],
                   ),

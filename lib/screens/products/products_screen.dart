@@ -7,6 +7,7 @@ import '../../providers/product_provider.dart';
 import '../../providers/category_provider.dart';
 import '../../providers/supplier_provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/responsive.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/product_card.dart';
 import '../../core/widgets/app_components.dart';
@@ -100,6 +101,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
         products.statusFilter == null &&
         products.selectedSupplierId == null;
 
+    final isWide = AppResponsive.isTabletOrDesktop(context);
+    final hPad = AppResponsive.screenPadding(context);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -107,7 +111,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           children: [
             // Top Header matching Image 2: "Inventory" + Pill "Add Product"
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
+              padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 0),
               child: Row(
                 children: [
                   const Text(
@@ -156,10 +160,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
             const SizedBox(height: 14),
 
-            // Search & Filter Bar matching Image 2:
-            // Circular search icon button on left + Horizontal scrolling pill filter chips
+            // Search & Filter Bar
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
+              padding: EdgeInsets.symmetric(horizontal: hPad),
               child: Row(
                 children: [
                   // Circular search icon button
@@ -207,15 +210,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         scrollDirection: Axis.horizontal,
                         physics: const BouncingScrollPhysics(),
                         children: [
-                          // 1. "Total Stock" pill chip (Active by default if no filters)
                           _FilterPill(
                             label: 'Total Stock',
                             selected: isAllSelected,
                             onTap: () => products.clearFilters(),
                           ),
                           const SizedBox(width: 8),
-
-                          // 2. "Out of Stock" pill chip
                           _FilterPill(
                             label: 'Out of Stock',
                             selected: products.statusFilter ==
@@ -224,8 +224,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                 .setStatusFilter(StockStatus.outOfStock),
                           ),
                           const SizedBox(width: 8),
-
-                          // 3. "Low Stock" pill chip
                           _FilterPill(
                             label: 'Low Stock',
                             selected:
@@ -234,8 +232,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                 .setStatusFilter(StockStatus.lowStock),
                           ),
                           const SizedBox(width: 8),
-
-                          // 4. Categories chips
                           if (canViewCategories)
                             ...categories.categories.map(
                               (cat) => Padding(
@@ -249,8 +245,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                 ),
                               ),
                             ),
-
-                          // Filter sheet toggle button
                           GestureDetector(
                             onTap: () => _openFilterBottomSheet(context),
                             child: Container(
@@ -282,7 +276,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             if (_showSearch) ...[
               const SizedBox(height: 10),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18),
+                padding: EdgeInsets.symmetric(horizontal: hPad),
                 child: SearchField(
                   controller: _searchCtrl,
                   hint: 'Search products, SKU...',
@@ -293,7 +287,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
             const SizedBox(height: 12),
 
-            // Product Cards List matching Image 2
+            // Product list / grid
             Expanded(
               child: products.isLoading && products.allProducts.isEmpty
                   ? const Center(
@@ -354,73 +348,159 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                     ),
                                   ],
                                 )
-                              : ListView.builder(
-                                  padding: const EdgeInsets.fromLTRB(
-                                      18, 4, 18, 100),
-                                  itemCount: filtered.length,
-                                  itemBuilder: (_, i) {
-                                    final product = filtered[i];
-                                    final cat = canViewCategories
-                                        ? categories
-                                            .findById(product.categoryId)
-                                        : null;
-                                    return Slidable(
-                                      key: ValueKey(product.id),
-                                      endActionPane: canManageProducts
-                                          ? ActionPane(
-                                              motion: const DrawerMotion(),
-                                              children: [
-                                                SlidableAction(
-                                                  onPressed: (_) => context.push(
-                                                      '/products/edit/${product.id}'),
-                                                  backgroundColor:
-                                                      AppColors.primaryDark,
-                                                  foregroundColor: Colors.white,
-                                                  icon: Icons.edit_outlined,
-                                                  label: 'Edit',
-                                                  borderRadius:
-                                                      const BorderRadius
-                                                          .horizontal(
-                                                          left: Radius.circular(
-                                                              12)),
-                                                ),
-                                                SlidableAction(
-                                                  onPressed: (_) =>
-                                                      _deleteProduct(
-                                                          context, product),
-                                                  backgroundColor:
-                                                      AppColors.outOfStockText,
-                                                  foregroundColor: Colors.white,
-                                                  icon: Icons.delete_outlined,
-                                                  label: 'Delete',
-                                                  borderRadius:
-                                                      const BorderRadius
-                                                          .horizontal(
-                                                          right:
-                                                              Radius.circular(
-                                                                  12)),
-                                                ),
-                                              ],
-                                            )
-                                          : null,
-                                      child: ProductCard(
-                                        product: product,
-                                        categoryName: canViewCategories
-                                            ? (cat?.name ??
-                                                product.categoryName ??
-                                                '')
-                                            : '',
-                                        onTap: () => context
-                                            .push('/products/${product.id}'),
-                                      ),
-                                    );
-                                  },
-                                ),
+                              : isWide
+                                  // ── Tablet/Desktop: 2-column grid ──────────
+                                  ? _buildProductGrid(
+                                      context,
+                                      filtered,
+                                      categories,
+                                      canViewCategories,
+                                      canManageProducts,
+                                      hPad,
+                                    )
+                                  // ── Mobile: list ───────────────────────────
+                                  : ListView.builder(
+                                      padding: EdgeInsets.fromLTRB(
+                                          hPad, 4, hPad, 100),
+                                      itemCount: filtered.length,
+                                      itemBuilder: (_, i) {
+                                        final product = filtered[i];
+                                        final cat = canViewCategories
+                                            ? categories
+                                                .findById(product.categoryId)
+                                            : null;
+                                        return Slidable(
+                                          key: ValueKey(product.id),
+                                          endActionPane: canManageProducts
+                                              ? ActionPane(
+                                                  motion: const DrawerMotion(),
+                                                  children: [
+                                                    SlidableAction(
+                                                      onPressed: (_) =>
+                                                          context.push(
+                                                              '/products/edit/${product.id}'),
+                                                      backgroundColor:
+                                                          AppColors.primaryDark,
+                                                      foregroundColor:
+                                                          Colors.white,
+                                                      icon:
+                                                          Icons.edit_outlined,
+                                                      label: 'Edit',
+                                                      borderRadius:
+                                                          const BorderRadius
+                                                              .horizontal(
+                                                              left:
+                                                                  Radius.circular(
+                                                                      12)),
+                                                    ),
+                                                    SlidableAction(
+                                                      onPressed: (_) =>
+                                                          _deleteProduct(
+                                                              context, product),
+                                                      backgroundColor:
+                                                          AppColors
+                                                              .outOfStockText,
+                                                      foregroundColor:
+                                                          Colors.white,
+                                                      icon:
+                                                          Icons.delete_outlined,
+                                                      label: 'Delete',
+                                                      borderRadius:
+                                                          const BorderRadius
+                                                              .horizontal(
+                                                              right: Radius
+                                                                  .circular(
+                                                                      12)),
+                                                    ),
+                                                  ],
+                                                )
+                                              : null,
+                                          child: ProductCard(
+                                            product: product,
+                                            categoryName: canViewCategories
+                                                ? (cat?.name ??
+                                                    product.categoryName ??
+                                                    '')
+                                                : '',
+                                            onTap: () => context
+                                                .push('/products/${product.id}'),
+                                          ),
+                                        );
+                                      },
+                                    ),
                         ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  /// Responsive grid layout for tablet/desktop with fixed main axis height.
+  Widget _buildProductGrid(
+    BuildContext context,
+    List<Product> filtered,
+    CategoryProvider categories,
+    bool canViewCategories,
+    bool canManageProducts,
+    double hPad,
+  ) {
+    final textScale =
+        MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.4);
+    final cardHeight = (112.0 * textScale).clamp(112.0, 148.0);
+
+    return GridView.builder(
+      padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 100),
+      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 460,
+        mainAxisExtent: cardHeight,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 12,
+      ),
+      itemCount: filtered.length,
+      itemBuilder: (_, i) {
+        final product = filtered[i];
+        final cat = canViewCategories
+            ? categories.findById(product.categoryId)
+            : null;
+        return Slidable(
+          key: ValueKey(product.id),
+          endActionPane: canManageProducts
+              ? ActionPane(
+                  motion: const DrawerMotion(),
+                  children: [
+                    SlidableAction(
+                      onPressed: (_) =>
+                          context.push('/products/edit/${product.id}'),
+                      backgroundColor: AppColors.primaryDark,
+                      foregroundColor: Colors.white,
+                      icon: Icons.edit_outlined,
+                      label: 'Edit',
+                      borderRadius: const BorderRadius.horizontal(
+                          left: Radius.circular(12)),
+                    ),
+                    SlidableAction(
+                      onPressed: (_) => _deleteProduct(context, product),
+                      backgroundColor: AppColors.outOfStockText,
+                      foregroundColor: Colors.white,
+                      icon: Icons.delete_outlined,
+                      label: 'Delete',
+                      borderRadius: const BorderRadius.horizontal(
+                          right: Radius.circular(12)),
+                    ),
+                  ],
+                )
+              : null,
+          child: ProductCard(
+            product: product,
+            margin: EdgeInsets.zero,
+            categoryName: canViewCategories
+                ? (cat?.name ?? product.categoryName ?? '')
+                : '',
+            onTap: () => context.push('/products/${product.id}'),
+          ),
+        );
+      },
     );
   }
 }

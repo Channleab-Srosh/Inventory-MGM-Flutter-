@@ -91,62 +91,65 @@ class _HistoryFilterSheetState extends State<HistoryFilterSheet> {
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
-        ),
-        padding: const EdgeInsets.all(20),
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.grey200,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Filter Stock History',
-              style: theme.textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-
-            // 1. Transaction Type
-            const Text(
-              'Transaction Type',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Row(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 540,
+            maxHeight: MediaQuery.of(context).size.height * 0.85,
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            child: ListView(
+              shrinkWrap: true,
               children: [
-                _TypeChip(
-                  label: 'All',
-                  selected: _type == null,
-                  onSelected: () => setState(() => _type = null),
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.grey200,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 8),
-                _TypeChip(
-                  label: 'Stock In',
-                  selected: _type == MovementType.stockIn,
-                  color: AppColors.chartIn,
-                  onSelected: () => setState(() => _type = MovementType.stockIn),
+                const SizedBox(height: 16),
+                Text(
+                  'Filter Stock History',
+                  style: theme.textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(width: 8),
-                _TypeChip(
-                  label: 'Stock Out',
-                  selected: _type == MovementType.stockOut,
-                  color: AppColors.chartOut,
-                  onSelected: () => setState(() => _type = MovementType.stockOut),
+                const SizedBox(height: 16),
+
+                // 1. Transaction Type
+                const Text(
+                  'Transaction Type',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _TypeChip(
+                      label: 'All',
+                      selected: _type == null,
+                      onSelected: () => setState(() => _type = null),
+                    ),
+                    _TypeChip(
+                      label: 'Stock In',
+                      selected: _type == MovementType.stockIn,
+                      color: AppColors.chartIn,
+                      onSelected: () => setState(() => _type = MovementType.stockIn),
+                    ),
+                    _TypeChip(
+                      label: 'Stock Out',
+                      selected: _type == MovementType.stockOut,
+                      color: AppColors.chartOut,
+                      onSelected: () => setState(() => _type = MovementType.stockOut),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
 
             // 2. Product filter dropdown
             const Text(
@@ -155,6 +158,7 @@ class _HistoryFilterSheetState extends State<HistoryFilterSheet> {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String?>(
+              isExpanded: true,
               initialValue: _selectedProductId,
               decoration: const InputDecoration(
                 hintText: 'All Products',
@@ -164,8 +168,10 @@ class _HistoryFilterSheetState extends State<HistoryFilterSheet> {
                 const DropdownMenuItem(value: null, child: Text('All Products')),
                 ...widget.products.map((p) => DropdownMenuItem(
                       value: p.id as String,
-                      child: Text('${p.name} (${p.sku})',
-                          overflow: TextOverflow.ellipsis),
+                      child: Text(
+                        '${p.name} (${p.sku})',
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     )),
               ],
               onChanged: (v) => setState(() => _selectedProductId = v),
@@ -179,6 +185,7 @@ class _HistoryFilterSheetState extends State<HistoryFilterSheet> {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String?>(
+              isExpanded: true,
               initialValue: _selectedUserId,
               decoration: const InputDecoration(
                 hintText: 'All Users',
@@ -188,7 +195,10 @@ class _HistoryFilterSheetState extends State<HistoryFilterSheet> {
                 const DropdownMenuItem(value: null, child: Text('All Users')),
                 ...widget.users.map((u) => DropdownMenuItem(
                       value: u.id as String,
-                      child: Text('${u.name} (${u.roleDisplayName})'),
+                      child: Text(
+                        '${u.name} (${u.roleDisplayName})',
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     )),
               ],
               onChanged: (v) => setState(() => _selectedUserId = v),
@@ -206,11 +216,14 @@ class _HistoryFilterSheetState extends State<HistoryFilterSheet> {
                 Expanded(
                   child: OutlinedButton.icon(
                     icon: const Icon(Icons.calendar_today, size: 16),
-                    label: Text(
-                      _start == null
-                          ? 'From Date'
-                          : DateFormat('dd/MM/yy').format(_start!),
-                      style: const TextStyle(fontSize: 12),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        _start == null
+                            ? 'From Date'
+                            : DateFormat('dd/MM/yy').format(_start!),
+                        style: const TextStyle(fontSize: 12),
+                      ),
                     ),
                     onPressed: () async {
                       final picked = await showDatePicker(
@@ -227,11 +240,14 @@ class _HistoryFilterSheetState extends State<HistoryFilterSheet> {
                 Expanded(
                   child: OutlinedButton.icon(
                     icon: const Icon(Icons.calendar_today, size: 16),
-                    label: Text(
-                      _end == null
-                          ? 'To Date'
-                          : DateFormat('dd/MM/yy').format(_end!),
-                      style: const TextStyle(fontSize: 12),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        _end == null
+                            ? 'To Date'
+                            : DateFormat('dd/MM/yy').format(_end!),
+                        style: const TextStyle(fontSize: 12),
+                      ),
                     ),
                     onPressed: () async {
                       final picked = await showDatePicker(
@@ -276,7 +292,9 @@ class _HistoryFilterSheetState extends State<HistoryFilterSheet> {
           ],
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }
 

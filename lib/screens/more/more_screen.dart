@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/responsive.dart';
 import '../../core/widgets/common_widgets.dart';
 
 /// "More" hub with modern card styling
@@ -15,241 +16,291 @@ class MoreScreen extends StatelessWidget {
     final user = auth.user;
     final canManageUsers = user?.canManageUsers == true;
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 18),
+    final isWide = AppResponsive.isTabletOrDesktop(context);
+    final hPad = AppResponsive.screenPadding(context);
+
+    // ── Profile card ─────────────────────────────────────────────────────────
+    final profileCard = GestureDetector(
+      onTap: () => context.push('/profile'),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(AppTheme.bentoRadius),
+          boxShadow: AppColors.lavenderShadow,
+        ),
+        child: Row(
           children: [
-            // Bold header
-            const Padding(
-              padding: EdgeInsets.only(top: 14, bottom: 16),
-              child: Text(
-                'More',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.6,
-                  color: AppColors.text,
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.25),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  user?.initials ?? 'U',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),
-
-            // User profile preview card — avatar + two-line greeting style
-            GestureDetector(
-              onTap: () => context.push('/profile'),
-              child: Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(AppTheme.bentoRadius),
-                  boxShadow: AppColors.lavenderShadow,
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.25),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
                         child: Text(
-                          user?.initials ?? 'U',
+                          user?.name ?? 'User',
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 20,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.2,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.22),
+                          borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+                        ),
+                        child: Text(
+                          user?.roleBadgeLabel ?? 'STAFF',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    user?.email ?? '',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 13,
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  user?.name ?? 'User',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: -0.2,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.22),
-                                  borderRadius: BorderRadius.circular(AppTheme.pillRadius),
-                                ),
-                                child: Text(
-                                  user?.roleBadgeLabel ?? 'STAFF',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            user?.email ?? '',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.85),
-                              fontSize: 13,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'View & edit profile →',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.9),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'View & edit profile →',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.chevron_right_rounded,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                  color: Colors.white,
+                  size: 20,
                 ),
               ),
             ),
-            const SizedBox(height: 20),
-
-            // Inventory Section
-            const _SectionLabel(label: 'INVENTORY OPERATIONS'),
-            const SizedBox(height: 8),
-            _MenuCard(items: [
-              if (user?.canViewCategories == true)
-                _MenuItem(
-                  icon: Icons.category_rounded,
-                  label: 'Categories',
-                  subtitle: 'Organize catalog & categories',
-                  iconBgColor: const Color(0xFFEDE9FE),
-                  iconColor: const Color(0xFF7C3AED),
-                  onTap: () => context.push('/more/categories'),
-                ),
-              _MenuItem(
-                icon: Icons.business_rounded,
-                label: 'Suppliers',
-                subtitle: 'Vendor contact & address records',
-                iconBgColor: const Color(0xFFE0F2FE),
-                iconColor: const Color(0xFF0284C7),
-                onTap: () => context.push('/more/suppliers'),
-              ),
-              _MenuItem(
-                icon: Icons.history_rounded,
-                label: 'Stock History',
-                subtitle: 'Audit logs of in/out movements',
-                iconBgColor: AppColors.lowStockBg,
-                iconColor: AppColors.lowStockText,
-                onTap: () => context.push('/history'),
-              ),
-            ]),
-            const SizedBox(height: 16),
-
-            // Reports & Analytics
-            const _SectionLabel(label: 'REPORTS & ANALYTICS'),
-            const SizedBox(height: 8),
-            _MenuCard(items: [
-              _MenuItem(
-                icon: Icons.bar_chart_rounded,
-                label: 'Reports',
-                subtitle: 'Summary, in/out reports, low stock',
-                iconBgColor: AppColors.inStockBg,
-                iconColor: AppColors.inStockText,
-                onTap: () => context.push('/reports'),
-              ),
-            ]),
-            const SizedBox(height: 16),
-
-            // Administration Section (Admin only)
-            if (canManageUsers) ...[
-              const _SectionLabel(label: 'ADMINISTRATION'),
-              const SizedBox(height: 8),
-              _MenuCard(items: [
-                _MenuItem(
-                  icon: Icons.people_rounded,
-                  label: 'User Management',
-                  subtitle: 'Manage accounts, roles, & access',
-                  iconBgColor: AppColors.primaryActive,
-                  iconColor: AppColors.primaryDark,
-                  onTap: () => context.push('/more/users'),
-                ),
-                _MenuItem(
-                  icon: Icons.settings_rounded,
-                  label: 'System Settings',
-                  subtitle: 'Currency, thresholds, & alerts',
-                  iconBgColor: const Color(0xFFF0F1F5),
-                  iconColor: AppColors.secondaryText,
-                  onTap: () => context.push('/more/settings'),
-                ),
-              ]),
-              const SizedBox(height: 16),
-            ],
-
-            // Account Section
-            const _SectionLabel(label: 'ACCOUNT'),
-            const SizedBox(height: 8),
-            _MenuCard(items: [
-              _MenuItem(
-                icon: Icons.person_rounded,
-                label: 'My Profile',
-                subtitle: 'Account details & change password',
-                iconBgColor: AppColors.primaryActive,
-                iconColor: AppColors.primaryDark,
-                onTap: () => context.push('/profile'),
-              ),
-              _MenuItem(
-                icon: Icons.logout_rounded,
-                label: 'Logout',
-                subtitle: 'Sign out of this session',
-                iconBgColor: AppColors.outOfStockBg,
-                iconColor: AppColors.outOfStockText,
-                onTap: () => _confirmLogout(context, auth),
-              ),
-            ]),
-            const SizedBox(height: 24),
-
-            Center(
-              child: Text(
-                'Inventory Manager v1.0.0 · ${user?.roleDisplayName ?? "Staff"}',
-                style: const TextStyle(
-                  color: AppColors.secondaryText,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-            const SizedBox(height: 80),
           ],
         ),
+      ),
+    );
+
+    // ── Menu sections ─────────────────────────────────────────────────────────
+    final menuSections = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionLabel(label: 'INVENTORY OPERATIONS'),
+        const SizedBox(height: 8),
+        _MenuCard(items: [
+          if (user?.canViewCategories == true)
+            _MenuItem(
+              icon: Icons.category_rounded,
+              label: 'Categories',
+              subtitle: 'Organize catalog & categories',
+              iconBgColor: const Color(0xFFEDE9FE),
+              iconColor: const Color(0xFF7C3AED),
+              onTap: () => context.push('/more/categories'),
+            ),
+          _MenuItem(
+            icon: Icons.business_rounded,
+            label: 'Suppliers',
+            subtitle: 'Vendor contact & address records',
+            iconBgColor: const Color(0xFFE0F2FE),
+            iconColor: const Color(0xFF0284C7),
+            onTap: () => context.push('/more/suppliers'),
+          ),
+          _MenuItem(
+            icon: Icons.history_rounded,
+            label: 'Stock History',
+            subtitle: 'Audit logs of in/out movements',
+            iconBgColor: AppColors.lowStockBg,
+            iconColor: AppColors.lowStockText,
+            onTap: () => context.push('/history'),
+          ),
+        ]),
+        const SizedBox(height: 16),
+
+        const _SectionLabel(label: 'REPORTS & ANALYTICS'),
+        const SizedBox(height: 8),
+        _MenuCard(items: [
+          _MenuItem(
+            icon: Icons.bar_chart_rounded,
+            label: 'Reports',
+            subtitle: 'Summary, in/out reports, low stock',
+            iconBgColor: AppColors.inStockBg,
+            iconColor: AppColors.inStockText,
+            onTap: () => context.push('/reports'),
+          ),
+        ]),
+        const SizedBox(height: 16),
+
+        if (canManageUsers) ...[
+          const _SectionLabel(label: 'ADMINISTRATION'),
+          const SizedBox(height: 8),
+          _MenuCard(items: [
+            _MenuItem(
+              icon: Icons.people_rounded,
+              label: 'User Management',
+              subtitle: 'Manage accounts, roles, & access',
+              iconBgColor: AppColors.primaryActive,
+              iconColor: AppColors.primaryDark,
+              onTap: () => context.push('/more/users'),
+            ),
+            _MenuItem(
+              icon: Icons.settings_rounded,
+              label: 'System Settings',
+              subtitle: 'Currency, thresholds, & alerts',
+              iconBgColor: const Color(0xFFF0F1F5),
+              iconColor: AppColors.secondaryText,
+              onTap: () => context.push('/more/settings'),
+            ),
+          ]),
+          const SizedBox(height: 16),
+        ],
+
+        const _SectionLabel(label: 'ACCOUNT'),
+        const SizedBox(height: 8),
+        _MenuCard(items: [
+          _MenuItem(
+            icon: Icons.person_rounded,
+            label: 'My Profile',
+            subtitle: 'Account details & change password',
+            iconBgColor: AppColors.primaryActive,
+            iconColor: AppColors.primaryDark,
+            onTap: () => context.push('/profile'),
+          ),
+          _MenuItem(
+            icon: Icons.logout_rounded,
+            label: 'Logout',
+            subtitle: 'Sign out of this session',
+            iconBgColor: AppColors.outOfStockBg,
+            iconColor: AppColors.outOfStockText,
+            onTap: () => _confirmLogout(context, auth),
+          ),
+        ]),
+        const SizedBox(height: 24),
+
+        Center(
+          child: Text(
+            'Inventory Manager v1.0.0 · ${user?.roleDisplayName ?? "Staff"}',
+            style: const TextStyle(
+              color: AppColors.secondaryText,
+              fontSize: 12,
+            ),
+          ),
+        ),
+        const SizedBox(height: 80),
+      ],
+    );
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: isWide
+            // ── Tablet/Desktop: two-column layout ────────────────────────────
+            ? SingleChildScrollView(
+                padding: EdgeInsets.symmetric(horizontal: hPad),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                        maxWidth: AppResponsive.contentMaxWidth(context)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.only(top: 14, bottom: 16),
+                          child: Text(
+                            'More',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.6,
+                              color: AppColors.text,
+                            ),
+                          ),
+                        ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Left column: profile card
+                            SizedBox(
+                              width: 280,
+                              child: profileCard,
+                            ),
+                            const SizedBox(width: 24),
+                            // Right column: menus
+                            Expanded(child: menuSections),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            // ── Mobile: original single-column list ───────────────────────────
+            : ListView(
+                padding: EdgeInsets.symmetric(horizontal: hPad),
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 14, bottom: 16),
+                    child: Text(
+                      'More',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.6,
+                        color: AppColors.text,
+                      ),
+                    ),
+                  ),
+                  profileCard,
+                  const SizedBox(height: 20),
+                  menuSections,
+                ],
+              ),
       ),
     );
   }

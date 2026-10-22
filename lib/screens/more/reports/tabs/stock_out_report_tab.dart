@@ -160,8 +160,11 @@ class StockOutReportTab extends StatelessWidget {
                         color: AppColors.grey100,
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
+                        runSpacing: 4,
                         children: [
                           Text(
                             'Stock: ${m.stockBefore ?? "-"} → ${m.stockAfter ?? "-"} units',

@@ -115,8 +115,11 @@ class _UsersScreenState extends State<UsersScreen> {
           ),
         ),
       ),
-      body: Column(
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 840),
+          child: Column(
+            children: [
           // Filter chips
           SizedBox(
             height: 44,
@@ -200,7 +203,9 @@ class _UsersScreenState extends State<UsersScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+    ),
+  ),
+  floatingActionButton: FloatingActionButton.extended(
         onPressed: () => AddEditUserSheet.show(context, user: null),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,

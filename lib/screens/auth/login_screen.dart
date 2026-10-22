@@ -121,7 +121,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
                 const SizedBox(height: 14),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     OutlinedButton.icon(
                       onPressed: isTesting
@@ -150,7 +152,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           : const Icon(Icons.network_check, size: 14),
                       label: const Text('Test Connection', style: TextStyle(fontSize: 12)),
                     ),
-                    const SizedBox(width: 8),
                     TextButton.icon(
                       onPressed: isTesting
                           ? null

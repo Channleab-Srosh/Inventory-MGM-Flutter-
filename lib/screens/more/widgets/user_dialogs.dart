@@ -126,16 +126,19 @@ class _AddEditUserSheetState extends State<AddEditUserSheet> {
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
-        ),
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            shrinkWrap: true,
-            children: [
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 540,
+            maxHeight: MediaQuery.of(context).size.height * 0.85,
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            child: Form(
+              key: _formKey,
+              child: ListView(
+                shrinkWrap: true,
+                children: [
               Center(
                 child: Container(
                   width: 40,
@@ -213,14 +216,21 @@ class _AddEditUserSheetState extends State<AddEditUserSheet> {
 
               // Role selector
               DropdownButtonFormField<String>(
+                isExpanded: true,
                 initialValue: _role,
                 decoration: const InputDecoration(
                   labelText: 'System Role',
                   prefixIcon: Icon(Icons.badge_outlined, size: 20),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'ADMIN', child: Text('ADMIN (Full Access)')),
-                  DropdownMenuItem(value: 'STAFF', child: Text('STAFF (Standard Operations)')),
+                  DropdownMenuItem(
+                    value: 'ADMIN',
+                    child: Text('ADMIN (Full Access)', overflow: TextOverflow.ellipsis),
+                  ),
+                  DropdownMenuItem(
+                    value: 'STAFF',
+                    child: Text('STAFF (Standard Operations)', overflow: TextOverflow.ellipsis),
+                  ),
                 ],
                 onChanged: (val) {
                   if (val != null) setState(() => _role = val);
@@ -230,14 +240,21 @@ class _AddEditUserSheetState extends State<AddEditUserSheet> {
 
               // Status selector
               DropdownButtonFormField<String>(
+                isExpanded: true,
                 initialValue: _status,
                 decoration: const InputDecoration(
                   labelText: 'Account Status',
                   prefixIcon: Icon(Icons.toggle_on_outlined, size: 20),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'Active', child: Text('Active (Can Log In)')),
-                  DropdownMenuItem(value: 'Inactive', child: Text('Inactive (Suspended)')),
+                  DropdownMenuItem(
+                    value: 'Active',
+                    child: Text('Active (Can Log In)', overflow: TextOverflow.ellipsis),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Inactive',
+                    child: Text('Inactive (Suspended)', overflow: TextOverflow.ellipsis),
+                  ),
                 ],
                 onChanged: (val) {
                   if (val != null) setState(() => _status = val);
@@ -259,7 +276,9 @@ class _AddEditUserSheetState extends State<AddEditUserSheet> {
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }
 
@@ -277,41 +296,43 @@ class UserRoleDialog {
         builder: (ctx, setDialogState) {
           return AlertDialog(
             title: const Text('Change User Role'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Select a new role for "${target.name}":',
-                  style: const TextStyle(fontSize: 14),
-                ),
-                const SizedBox(height: 8),
-                RadioGroup<String>(
-                  groupValue: selectedRole,
-                  onChanged: (val) {
-                    if (val != null) setDialogState(() => selectedRole = val);
-                  },
-                  child: const Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      RadioListTile<String>(
-                        value: 'ADMIN',
-                        title: Text('ADMIN'),
-                        subtitle: Text('Full system access and user management', style: TextStyle(fontSize: 12)),
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                      RadioListTile<String>(
-                        value: 'STAFF',
-                        title: Text('STAFF'),
-                        subtitle: Text('Standard inventory operations', style: TextStyle(fontSize: 12)),
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ],
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Select a new role for "${target.name}":',
+                    style: const TextStyle(fontSize: 14),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  RadioGroup<String>(
+                    groupValue: selectedRole,
+                    onChanged: (val) {
+                      if (val != null) setDialogState(() => selectedRole = val);
+                    },
+                    child: const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        RadioListTile<String>(
+                          value: 'ADMIN',
+                          title: Text('ADMIN'),
+                          subtitle: Text('Full system access and user management', style: TextStyle(fontSize: 12)),
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        RadioListTile<String>(
+                          value: 'STAFF',
+                          title: Text('STAFF'),
+                          subtitle: Text('Standard inventory operations', style: TextStyle(fontSize: 12)),
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
             actions: [
               TextButton(

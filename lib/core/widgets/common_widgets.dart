@@ -74,13 +74,18 @@ class SummaryCard extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      value,
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.5,
-                        color: isPrimary ? Colors.white : AppColors.text,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        value,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.5,
+                          color: isPrimary ? Colors.white : AppColors.text,
+                        ),
+                        maxLines: 1,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -93,6 +98,8 @@ class SummaryCard extends StatelessWidget {
                             ? Colors.white.withValues(alpha: 0.85)
                             : AppColors.secondaryText,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -401,17 +408,23 @@ class SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.3,
-            color: AppColors.text,
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.3,
+              color: AppColors.text,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
-        const Spacer(),
-        if (trailing != null) trailing!,
+        if (trailing != null) ...[
+          const SizedBox(width: 8),
+          trailing!,
+        ],
       ],
     );
   }
@@ -451,12 +464,15 @@ class QuantityStepper extends StatelessWidget {
           Container(
             width: 52,
             alignment: Alignment.center,
-            child: Text(
-              '$value',
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: AppColors.text,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                '$value',
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text,
+                ),
               ),
             ),
           ),

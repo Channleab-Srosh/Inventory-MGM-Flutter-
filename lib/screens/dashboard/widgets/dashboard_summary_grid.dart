@@ -53,8 +53,18 @@ class _DashboardSummaryGridState extends State<DashboardSummaryGrid> {
     return LayoutBuilder(
       builder: (context, constraints) {
         const spacing = 12.0;
-        final itemWidth = (constraints.maxWidth - spacing) / 2;
-        final itemHeight = itemWidth * 0.96;
+
+        // Dynamically choose column count based on available space:
+        // >= 720px width: 4 columns
+        // < 720px width: 2 columns
+        final textScale = MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.5);
+        final crossCount = constraints.maxWidth >= 720 ? 4 : 2;
+        final itemWidth = (constraints.maxWidth - spacing * (crossCount - 1)) / crossCount;
+        final baseHeight = crossCount == 4
+            ? 136.0
+            : (itemWidth * 0.94).clamp(132.0, 156.0);
+        final itemHeight = baseHeight * textScale;
+        final isCompact = itemWidth < 160;
 
         return Wrap(
           spacing: spacing,
@@ -66,6 +76,7 @@ class _DashboardSummaryGridState extends State<DashboardSummaryGrid> {
               height: itemHeight,
               child: _BentoMetricCard(
                 isPrimary: true,
+                isCompact: isCompact,
                 title: 'Total Stock Value',
                 value: formattedStockValue,
                 icon: Icons.inventory_2_outlined,
@@ -83,6 +94,7 @@ class _DashboardSummaryGridState extends State<DashboardSummaryGrid> {
               height: itemHeight,
               child: _BentoMetricCard(
                 isPrimary: false,
+                isCompact: isCompact,
                 title: 'Total Stock',
                 value: formattedTotalStock,
                 icon: Icons.all_inbox_rounded,
@@ -100,6 +112,7 @@ class _DashboardSummaryGridState extends State<DashboardSummaryGrid> {
               height: itemHeight,
               child: _BentoMetricCard(
                 isPrimary: false,
+                isCompact: isCompact,
                 title: 'Out of Stock',
                 value: formattedOutOfStock,
                 icon: Icons.inventory_outlined,
@@ -120,6 +133,7 @@ class _DashboardSummaryGridState extends State<DashboardSummaryGrid> {
               height: itemHeight,
               child: _BentoMetricCard(
                 isPrimary: false,
+                isCompact: isCompact,
                 title: 'Low Stock',
                 value: formattedLowStock,
                 icon: Icons.attach_money_rounded,
@@ -142,6 +156,7 @@ class _DashboardSummaryGridState extends State<DashboardSummaryGrid> {
 
 class _BentoMetricCard extends StatelessWidget {
   final bool isPrimary;
+  final bool isCompact;
   final String title;
   final String value;
   final IconData icon;
@@ -153,6 +168,7 @@ class _BentoMetricCard extends StatelessWidget {
 
   const _BentoMetricCard({
     required this.isPrimary,
+    this.isCompact = false,
     required this.title,
     required this.value,
     required this.icon,
@@ -165,6 +181,10 @@ class _BentoMetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hPadding = isCompact ? 10.0 : 14.0;
+    final vPadding = isCompact ? 10.0 : 12.0;
+    final iconSize = isCompact ? 30.0 : 36.0;
+
     return Container(
       decoration: BoxDecoration(
         color: isPrimary ? AppColors.primary : AppColors.card,
@@ -181,7 +201,7 @@ class _BentoMetricCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(AppTheme.bentoRadius),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.symmetric(horizontal: hPadding, vertical: vPadding),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -192,8 +212,8 @@ class _BentoMetricCard extends StatelessWidget {
                   children: [
                     // Circular icon
                     Container(
-                      width: 38,
-                      height: 38,
+                      width: iconSize,
+                      height: iconSize,
                       decoration: BoxDecoration(
                         color: iconBg,
                         shape: BoxShape.circle,
@@ -208,60 +228,67 @@ class _BentoMetricCard extends StatelessWidget {
                             : null,
                       ),
                       child: Center(
-                        child: Icon(icon, color: iconColor, size: 18),
+                        child: Icon(icon, color: iconColor, size: isCompact ? 15 : 17),
                       ),
                     ),
+                    const SizedBox(width: 4),
 
                     // Pill dropdown ('Weekly ˅')
-                    PopupMenuButton<String>(
-                      initialValue: period,
-                      onSelected: onPeriodChanged,
-                      tooltip: 'Select range',
-                      elevation: 3,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(value: 'Daily', child: Text('Daily')),
-                        const PopupMenuItem(value: 'Weekly', child: Text('Weekly')),
-                        const PopupMenuItem(value: 'Monthly', child: Text('Monthly')),
-                      ],
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isPrimary
-                              ? Colors.white.withValues(alpha: 0.22)
-                              : AppColors.background,
-                          borderRadius: BorderRadius.circular(AppTheme.pillRadius),
-                          border: Border.all(
-                            color: isPrimary
-                                ? Colors.white.withValues(alpha: 0.25)
-                                : AppColors.border,
-                            width: 1,
-                          ),
+                    Flexible(
+                      child: PopupMenuButton<String>(
+                        initialValue: period,
+                        onSelected: onPeriodChanged,
+                        tooltip: 'Select range',
+                        elevation: 3,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              period,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(value: 'Daily', child: Text('Daily')),
+                          const PopupMenuItem(value: 'Weekly', child: Text('Weekly')),
+                          const PopupMenuItem(value: 'Monthly', child: Text('Monthly')),
+                        ],
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isPrimary
+                                ? Colors.white.withValues(alpha: 0.22)
+                                : AppColors.background,
+                            borderRadius: BorderRadius.circular(AppTheme.pillRadius),
+                            border: Border.all(
+                              color: isPrimary
+                                  ? Colors.white.withValues(alpha: 0.25)
+                                  : AppColors.border,
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  period,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: isPrimary
+                                        ? Colors.white
+                                        : AppColors.secondaryText,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: 13,
                                 color: isPrimary
                                     ? Colors.white
                                     : AppColors.secondaryText,
                               ),
-                            ),
-                            const SizedBox(width: 2),
-                            Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 13,
-                              color: isPrimary
-                                  ? Colors.white
-                                  : AppColors.secondaryText,
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -278,16 +305,19 @@ class _BentoMetricCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            value,
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.6,
-                              color: isPrimary ? Colors.white : AppColors.text,
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              value,
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.6,
+                                color: isPrimary ? Colors.white : AppColors.text,
+                              ),
+                              maxLines: 1,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
                           Text(
@@ -308,7 +338,7 @@ class _BentoMetricCard extends StatelessWidget {
 
                     // Tiny diagonal arrow ('↗')
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
+                      padding: const EdgeInsets.only(bottom: 2, left: 4),
                       child: Icon(
                         Icons.arrow_outward_rounded,
                         size: 16,

@@ -22,9 +22,12 @@ class ProfileScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('My Profile')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680),
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
           // Avatar & Header
           Center(
             child: Stack(
@@ -207,7 +210,9 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 80),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }
 
@@ -300,11 +305,14 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Edit Profile')),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
             TextFormField(
               controller: _firstCtrl,
               decoration: const InputDecoration(
@@ -357,7 +365,9 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
           ],
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }
 
@@ -425,11 +435,14 @@ class _ChangePasswordScreenState extends State<_ChangePasswordScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Change Password')),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
             _PasswordField(
               controller: _currentCtrl,
               label: 'Current Password',
@@ -483,7 +496,9 @@ class _ChangePasswordScreenState extends State<_ChangePasswordScreen> {
           ],
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }
 

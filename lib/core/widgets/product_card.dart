@@ -14,18 +14,20 @@ class ProductCard extends StatelessWidget {
   final Product product;
   final String categoryName;
   final VoidCallback? onTap;
+  final EdgeInsetsGeometry margin;
 
   const ProductCard({
     super.key,
     required this.product,
     required this.categoryName,
     this.onTap,
+    this.margin = const EdgeInsets.only(bottom: 12),
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: margin,
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(AppTheme.cardRadius),
@@ -111,7 +113,10 @@ class ProductCard extends StatelessWidget {
                 // 3. Semantic status pill badge aligned to the bottom-right
                 Align(
                   alignment: Alignment.bottomRight,
-                  child: _buildStatusPill(product.stockStatus),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: _buildStatusPill(product.stockStatus),
+                  ),
                 ),
               ],
             ),
@@ -161,37 +166,37 @@ class ProductCard extends StatelessWidget {
     final Color trendColor =
         (isOut || isLow) ? AppColors.outOfStockText : AppColors.inStockText;
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          '${product.quantity} in Stock',
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: AppColors.text,
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: '${product.quantity} in Stock',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: AppColors.text,
+            ),
           ),
-        ),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 6),
-          child: Text(
-            '|',
+          const TextSpan(
+            text: '  |  ',
             style: TextStyle(
               fontSize: 11,
-              color: AppColors.border,
+              color: AppColors.secondaryText,
               fontWeight: FontWeight.w400,
             ),
           ),
-        ),
-        Text(
-          trendText,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: trendColor,
+          TextSpan(
+            text: trendText,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: trendColor,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
   }
 

@@ -95,8 +95,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           ),
         ),
       ),
-      body: Column(
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 840),
+          child: Column(
+            children: [
           // Filter chips
           SizedBox(
             height: 46,
@@ -279,7 +282,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+    ),
+  ),
+  floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddEditSheet(context, null),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
@@ -462,14 +467,17 @@ class _AddEditCategorySheetState extends State<_AddEditCategorySheet> {
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 540),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               Center(
                 child: Container(
                   width: 40,
@@ -521,6 +529,8 @@ class _AddEditCategorySheetState extends State<_AddEditCategorySheet> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 }

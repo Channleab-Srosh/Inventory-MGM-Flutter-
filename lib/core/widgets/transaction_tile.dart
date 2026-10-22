@@ -109,6 +109,8 @@ class TransactionTile extends StatelessWidget {
                           fontSize: 12,
                           color: AppColors.secondaryText,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       if (movement.stockBefore != null && movement.stockAfter != null) ...[
                         const SizedBox(height: 2),
@@ -119,6 +121,8 @@ class TransactionTile extends StatelessWidget {
                             fontWeight: FontWeight.w500,
                             color: AppColors.secondaryText,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                       if (showReference && movement.reference != null && movement.reference!.isNotEmpty) ...[
@@ -138,13 +142,20 @@ class TransactionTile extends StatelessWidget {
                 const SizedBox(width: 8),
 
                 // Quantity trailing
-                Text(
-                  '$sign${movement.quantity} ${movement.unit ?? "pcs"}',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.3,
-                    color: fgColor,
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 90),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '$sign${movement.quantity} ${movement.unit ?? "pcs"}',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
+                        color: fgColor,
+                      ),
+                    ),
                   ),
                 ),
               ],

@@ -194,11 +194,14 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit Product' : 'Add Product'),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680),
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
             // Image picker placeholder
             Center(
               child: GestureDetector(
@@ -273,6 +276,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
 
             // Category dropdown
             DropdownButtonFormField<String>(
+              isExpanded: true,
               initialValue: categories.any((c) => c.id == _selectedCategoryId)
                   ? _selectedCategoryId
                   : null,
@@ -280,7 +284,10 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
               items: categories
                   .map((c) => DropdownMenuItem(
                         value: c.id,
-                        child: Text(c.name),
+                        child: Text(
+                          c.name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ))
                   .toList(),
               onChanged: (v) => setState(() => _selectedCategoryId = v),
@@ -290,6 +297,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
 
             // Supplier dropdown
             DropdownButtonFormField<String>(
+              isExpanded: true,
               initialValue: suppliers.any((s) => s.id == _selectedSupplierId)
                   ? _selectedSupplierId
                   : null,
@@ -297,7 +305,10 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
               items: suppliers
                   .map((s) => DropdownMenuItem(
                         value: s.id,
-                        child: Text(s.name),
+                        child: Text(
+                          s.name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ))
                   .toList(),
               onChanged: (v) => setState(() => _selectedSupplierId = v),
@@ -307,6 +318,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
 
             // Status dropdown
             DropdownButtonFormField<String>(
+              isExpanded: true,
               initialValue: _status,
               decoration: const InputDecoration(labelText: 'Status *'),
               items: const [
@@ -341,6 +353,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
 
             // Unit of Measure selector
             DropdownButtonFormField<String>(
+              isExpanded: true,
               initialValue: _unit,
               decoration: const InputDecoration(
                 labelText: 'Unit of Measure *',
@@ -349,7 +362,10 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
               items: Product.commonUnits
                   .map((u) => DropdownMenuItem(
                         value: u,
-                        child: Text('${u.toUpperCase()} (${_unitDescription(u)})'),
+                        child: Text(
+                          '${u.toUpperCase()} (${_unitDescription(u)})',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ))
                   .toList(),
               onChanged: (v) {
@@ -360,44 +376,58 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
             ),
             const SizedBox(height: 12),
 
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _qtyCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: 'Initial Qty *',
-                      suffixText: _unit,
-                    ),
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return 'Required';
-                      final n = int.tryParse(v);
-                      if (n == null) return 'Invalid number';
-                      if (n < 0) return 'Stock quantity cannot be negative';
-                      return null;
-                    },
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 280;
+                final qtyField = TextFormField(
+                  controller: _qtyCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Initial Qty *',
+                    suffixText: _unit,
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _minStockCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: 'Min Stock *',
-                      suffixText: _unit,
-                    ),
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return 'Required';
-                      final n = int.tryParse(v);
-                      if (n == null) return 'Invalid number';
-                      if (n < 0) return 'Min stock cannot be negative';
-                      return null;
-                    },
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Required';
+                    final n = int.tryParse(v);
+                    if (n == null) return 'Invalid number';
+                    if (n < 0) return 'Stock quantity cannot be negative';
+                    return null;
+                  },
+                );
+                final minStockField = TextFormField(
+                  controller: _minStockCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Min Stock *',
+                    suffixText: _unit,
                   ),
-                ),
-              ],
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Required';
+                    final n = int.tryParse(v);
+                    if (n == null) return 'Invalid number';
+                    if (n < 0) return 'Min stock cannot be negative';
+                    return null;
+                  },
+                );
+
+                if (isNarrow) {
+                  return Column(
+                    children: [
+                      qtyField,
+                      const SizedBox(height: 12),
+                      minStockField,
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Expanded(child: qtyField),
+                    const SizedBox(width: 12),
+                    Expanded(child: minStockField),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 20),
 
@@ -429,7 +459,9 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
           ],
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 
   Widget _sectionLabel(ThemeData theme, String label) {

@@ -44,8 +44,11 @@ class ProductDetailScreen extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: CustomScrollView(
+            slivers: [
           // Hero image app bar
           SliverAppBar(
             expandedHeight: 220,
@@ -163,7 +166,9 @@ class ProductDetailScreen extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 
   Widget _statusChip(StockStatus status) {
@@ -187,12 +192,18 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: theme.textTheme.bodyMedium),
-        Text(value,
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
             style: theme.textTheme.bodyLarge
-                ?.copyWith(fontWeight: FontWeight.w500)),
+                ?.copyWith(fontWeight: FontWeight.w500),
+          ),
+        ),
       ],
     );
   }

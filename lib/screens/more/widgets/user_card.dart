@@ -100,6 +100,8 @@ class UserCard extends StatelessWidget {
                       Text(
                         u.email,
                         style: theme.textTheme.bodyMedium?.copyWith(fontSize: 13),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       if (u.phone != null && u.phone!.isNotEmpty) ...[
                         const SizedBox(height: 2),
@@ -170,54 +172,57 @@ class UserCard extends StatelessWidget {
               ],
             ),
             const Divider(height: 18),
-            // Actions Row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                // Edit User
-                TextButton.icon(
-                  icon: const Icon(Icons.edit_outlined, size: 16),
-                  label: const Text('Edit'),
-                  onPressed: onEdit,
-                ),
-                const SizedBox(width: 4),
-
-                // Change Role
-                TextButton.icon(
-                  icon: const Icon(Icons.swap_horiz, size: 16),
-                  label: const Text('Role'),
-                  onPressed: isCurrentLoggedIn
-                      ? () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('You cannot change your own role.')),
-                          );
-                        }
-                      : onChangeRole,
-                ),
-                const SizedBox(width: 4),
-
-                // Toggle Status (Activate / Deactivate)
-                TextButton.icon(
-                  icon: Icon(
-                    u.isActive ? Icons.block_outlined : Icons.check_circle_outline,
-                    size: 16,
-                    color: u.isActive ? AppColors.danger : AppColors.inStock,
+            // Actions Wrap
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 4,
+                runSpacing: 4,
+                children: [
+                  // Edit User
+                  TextButton.icon(
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: const Text('Edit'),
+                    onPressed: onEdit,
                   ),
-                  label: Text(
-                    u.isActive ? 'Deactivate' : 'Activate',
-                    style: TextStyle(
+
+                  // Change Role
+                  TextButton.icon(
+                    icon: const Icon(Icons.swap_horiz, size: 16),
+                    label: const Text('Role'),
+                    onPressed: isCurrentLoggedIn
+                        ? () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('You cannot change your own role.')),
+                            );
+                          }
+                        : onChangeRole,
+                  ),
+
+                  // Toggle Status (Activate / Deactivate)
+                  TextButton.icon(
+                    icon: Icon(
+                      u.isActive ? Icons.block_outlined : Icons.check_circle_outline,
+                      size: 16,
                       color: u.isActive ? AppColors.danger : AppColors.inStock,
                     ),
+                    label: Text(
+                      u.isActive ? 'Deactivate' : 'Activate',
+                      style: TextStyle(
+                        color: u.isActive ? AppColors.danger : AppColors.inStock,
+                      ),
+                    ),
+                    onPressed: isCurrentLoggedIn
+                        ? () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('You cannot deactivate your own account.')),
+                            );
+                          }
+                        : onToggleStatus,
                   ),
-                  onPressed: isCurrentLoggedIn
-                      ? () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('You cannot deactivate your own account.')),
-                          );
-                        }
-                      : onToggleStatus,
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),

@@ -15,9 +15,12 @@ class SettingsScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680),
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
           // ---- Appearance ----
           const _SectionLabel(title: 'Appearance'),
           Card(
@@ -202,7 +205,9 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 80),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 
   void _showCurrencyPicker(BuildContext context, SettingsProvider settings) {
@@ -216,34 +221,39 @@ class SettingsScreen extends StatelessWidget {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 12),
-          Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                  color: AppColors.grey200,
-                  borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 16),
-          const Text('Select Currency',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-          const SizedBox(height: 8),
-          ...currencies.map((c) => ListTile(
-                title: Text('${c['name']}'),
-                subtitle: Text('${c['code']} (${c['symbol']})'),
-                trailing: settings.currency == c['code']
-                    ? const Icon(Icons.check, color: AppColors.primary)
-                    : null,
-                onTap: () {
-                  settings.setCurrency(c['code']!, c['symbol']!);
-                  Navigator.pop(context);
-                },
-              )),
-          const SizedBox(height: 16),
-        ],
+      builder: (_) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                      color: AppColors.grey200,
+                      borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 16),
+              const Text('Select Currency',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+              const SizedBox(height: 8),
+              ...currencies.map((c) => ListTile(
+                    title: Text('${c['name']}'),
+                    subtitle: Text('${c['code']} (${c['symbol']})'),
+                    trailing: settings.currency == c['code']
+                        ? const Icon(Icons.check, color: AppColors.primary)
+                        : null,
+                    onTap: () {
+                      settings.setCurrency(c['code']!, c['symbol']!);
+                      Navigator.pop(context);
+                    },
+                  )),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -302,7 +312,9 @@ class SettingsScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 14),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     OutlinedButton.icon(
                       onPressed: isTesting
@@ -330,7 +342,6 @@ class SettingsScreen extends StatelessWidget {
                           : const Icon(Icons.network_check, size: 14),
                       label: const Text('Test Connection', style: TextStyle(fontSize: 12)),
                     ),
-                    const SizedBox(width: 8),
                     TextButton.icon(
                       onPressed: isTesting
                           ? null
