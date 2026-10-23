@@ -16,12 +16,26 @@ class ProductProvider extends ChangeNotifier {
   String? _error;
   UserProfile? _currentUser;
 
+  // Server-backed low stock products list (GET /dashboard/low-stock)
+  List<Product> _lowStockProducts = [];
+  bool _hasLoadedLowStock = false;
+  bool _isLoadingLowStock = false;
+  String? _lowStockError;
+
   // Server dashboard summary metrics (optional cache)
   Map<String, dynamic>? _serverSummary;
+
+  // Pagination state
+  int _currentPage = 0;
+  static const int _pageSize = 20;
+  bool _hasMore = true;
+  bool _isLoadingMore = false;
+  int _totalElements = 0;
 
   ProductProvider({UserProfile? currentUser}) : _currentUser = currentUser {
     if (_api.hasToken) {
       fetchProducts();
+      loadLowStock();
     }
   }
 
@@ -32,7 +46,15 @@ class ProductProvider extends ChangeNotifier {
 
   void clear() {
     _products = [];
+    _lowStockProducts = [];
+    _hasLoadedLowStock = false;
+    _isLoadingLowStock = false;
+    _lowStockError = null;
     _serverSummary = null;
+    _currentPage = 0;
+    _hasMore = true;
+    _isLoadingMore = false;
+    _totalElements = 0;
     _error = null;
     _isLoading = false;
     notifyListeners();
@@ -48,6 +70,10 @@ class ProductProvider extends ChangeNotifier {
   StockStatus? get statusFilter => _statusFilter;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  bool get hasMore => _hasMore;
+  bool get isLoadingMore => _isLoadingMore;
+  int get currentPage => _currentPage;
+  int get totalServerProducts => _totalElements;
 
   // ---- Summary stats ----
   int get totalProducts => _serverSummary != null && _serverSummary!['totalProducts'] != null
@@ -70,22 +96,76 @@ class ProductProvider extends ChangeNotifier {
       ? (_serverSummary!['totalInventoryValue'] as num).toDouble()
       : _products.fold(0.0, (s, p) => s + p.price * p.quantity);
 
-  List<Product> get lowStockProducts => _products
-      .where((p) =>
-          p.stockStatus == StockStatus.lowStock ||
-          p.stockStatus == StockStatus.outOfStock)
-      .toList();
+  bool get isLoadingLowStock => _isLoadingLowStock;
+  String? get lowStockError => _lowStockError;
 
-  /// Fetch products from backend API
-  Future<void> fetchProducts() async {
+  List<Product> get lowStockProducts {
+    if (_lowStockError != null) {
+      // Fallback to local calculation when server request fails
+      return _products
+          .where((p) =>
+              p.stockStatus == StockStatus.lowStock ||
+              p.stockStatus == StockStatus.outOfStock)
+          .toList();
+    }
+    if (_hasLoadedLowStock) {
+      return List.unmodifiable(_lowStockProducts);
+    }
+    return _products
+        .where((p) =>
+            p.stockStatus == StockStatus.lowStock ||
+            p.stockStatus == StockStatus.outOfStock)
+        .toList();
+  }
+
+  /// Load low stock products directly from backend GET /dashboard/low-stock
+  Future<void> loadLowStock() async {
     if (!_api.hasToken) return;
-    _isLoading = true;
-    _error = null;
+    _isLoadingLowStock = true;
+    _lowStockError = null;
     notifyListeners();
 
     try {
-      final list = await _api.getProducts(size: 100);
-      _products = list.map((item) => Product.fromJson(item as Map<String, dynamic>)).toList();
+      final list = await _api.getLowStockProducts(size: 100);
+      _lowStockProducts = list
+          .map((item) => Product.fromJson(item as Map<String, dynamic>))
+          .toList();
+      _hasLoadedLowStock = true;
+      _isLoadingLowStock = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoadingLowStock = false;
+      _lowStockError = (e is ApiException)
+          ? e.message
+          : e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+    }
+  }
+
+  /// Fetch products from backend API (page 0 or refresh)
+  Future<void> fetchProducts({bool reset = true}) async {
+    if (!_api.hasToken) return;
+    if (reset) {
+      _currentPage = 0;
+      _hasMore = true;
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+    }
+
+    try {
+      final paged = await _api.getProductsPaged(
+        keyword: _searchQuery.isNotEmpty ? _searchQuery : null,
+        categoryId: _selectedCategoryId,
+        supplierId: _selectedSupplierId,
+        page: 0,
+        size: _pageSize,
+      );
+
+      _products = paged.items.map(Product.fromJson).toList();
+      _currentPage = paged.page;
+      _hasMore = !paged.last;
+      _totalElements = paged.totalElements;
 
       // Also try fetching server summary metrics
       try {
@@ -97,6 +177,35 @@ class ProductProvider extends ChangeNotifier {
     } catch (e) {
       _isLoading = false;
       _error = (e is ApiException) ? e.message : e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+    }
+  }
+
+  /// Load next page for infinite scrolling
+  Future<void> loadMoreProducts() async {
+    if (!_api.hasToken || !_hasMore || _isLoadingMore || _isLoading) return;
+    _isLoadingMore = true;
+    notifyListeners();
+
+    try {
+      final nextPage = _currentPage + 1;
+      final paged = await _api.getProductsPaged(
+        keyword: _searchQuery.isNotEmpty ? _searchQuery : null,
+        categoryId: _selectedCategoryId,
+        supplierId: _selectedSupplierId,
+        page: nextPage,
+        size: _pageSize,
+      );
+
+      final newItems = paged.items.map(Product.fromJson).toList();
+      _products.addAll(newItems);
+      _currentPage = paged.page;
+      _hasMore = !paged.last;
+      _totalElements = paged.totalElements;
+      _isLoadingMore = false;
+      notifyListeners();
+    } catch (_) {
+      _isLoadingMore = false;
       notifyListeners();
     }
   }
@@ -126,18 +235,24 @@ class ProductProvider extends ChangeNotifier {
   }
 
   void setSearch(String q) {
-    _searchQuery = q;
-    notifyListeners();
+    if (_searchQuery != q) {
+      _searchQuery = q;
+      fetchProducts(reset: true);
+    }
   }
 
   void setCategoryFilter(String? categoryId) {
-    _selectedCategoryId = categoryId;
-    notifyListeners();
+    if (_selectedCategoryId != categoryId) {
+      _selectedCategoryId = categoryId;
+      fetchProducts(reset: true);
+    }
   }
 
   void setSupplierFilter(String? supplierId) {
-    _selectedSupplierId = supplierId;
-    notifyListeners();
+    if (_selectedSupplierId != supplierId) {
+      _selectedSupplierId = supplierId;
+      fetchProducts(reset: true);
+    }
   }
 
   void setStatusFilter(StockStatus? status) {
@@ -150,7 +265,7 @@ class ProductProvider extends ChangeNotifier {
     _selectedCategoryId = null;
     _selectedSupplierId = null;
     _statusFilter = null;
-    notifyListeners();
+    fetchProducts(reset: true);
   }
 
   /// Fetch inventory report from ReportController: GET /reports/inventory
@@ -346,6 +461,7 @@ class ProductProvider extends ChangeNotifier {
       _products[idx] = p.copyWith(quantity: newQty);
       notifyListeners();
     }
+    loadLowStock();
   }
 
   String _normalizeUnit(String? unit) {

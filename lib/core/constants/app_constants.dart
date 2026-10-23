@@ -5,7 +5,10 @@ class AppConstants {
   static const appVersion = '1.0.0';
 
   // Backend API Base URL
-  static const String baseUrl = 'http://192.168.0.242:8080/api/v1';
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://192.168.0.242:8080/api/v1',
+  );
 
   static String get defaultBaseUrl => baseUrl;
   static List<String> get candidateBaseUrls => [

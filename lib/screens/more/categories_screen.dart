@@ -71,6 +71,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
     final catProv = context.watch<CategoryProvider>();
     final prodProv = context.watch<ProductProvider>();
+    final canManageCategories = auth.user?.canManageCategories ?? false;
     final allCats = catProv.categories;
 
     final categories = allCats.where((c) {
@@ -243,35 +244,37 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                   ],
                                 ),
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.edit_outlined, size: 20),
-                                tooltip: 'Edit',
-                                onPressed: () => _showAddEditSheet(context, cat),
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  cat.isActive ? Icons.toggle_on : Icons.toggle_off,
-                                  size: 26,
-                                  color: cat.isActive ? AppColors.inStock : AppColors.grey500,
+                              if (canManageCategories) ...[
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined, size: 20),
+                                  tooltip: 'Edit',
+                                  onPressed: () => _showAddEditSheet(context, cat),
                                 ),
-                                tooltip: cat.isActive ? 'Deactivate' : 'Reactivate',
-                                onPressed: () {
-                                  catProv.toggleCategoryStatus(cat.id);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        '"${cat.name}" is now ${cat.isActive ? "inactive" : "active"}',
+                                IconButton(
+                                  icon: Icon(
+                                    cat.isActive ? Icons.toggle_on : Icons.toggle_off,
+                                    size: 26,
+                                    color: cat.isActive ? AppColors.inStock : AppColors.grey500,
+                                  ),
+                                  tooltip: cat.isActive ? 'Deactivate' : 'Reactivate',
+                                  onPressed: () {
+                                    catProv.toggleCategoryStatus(cat.id);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          '"${cat.name}" is now ${cat.isActive ? "inactive" : "active"}',
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                },
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline,
-                                    size: 20, color: AppColors.danger),
-                                tooltip: 'Delete',
-                                onPressed: () => _handleDeleteCategory(context, cat, count),
-                              ),
+                                    );
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline,
+                                      size: 20, color: AppColors.danger),
+                                  tooltip: 'Delete',
+                                  onPressed: () => _handleDeleteCategory(context, cat, count),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -284,13 +287,15 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       ),
     ),
   ),
-  floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddEditSheet(context, null),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Category'),
-      ),
+      floatingActionButton: canManageCategories
+          ? FloatingActionButton.extended(
+              onPressed: () => _showAddEditSheet(context, null),
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add),
+              label: const Text('Add Category'),
+            )
+          : null,
     );
   }
 
@@ -300,6 +305,16 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   /// • the category becomes inactive.
   /// For your project, I recommend soft deactivation."
   Future<void> _handleDeleteCategory(BuildContext context, Category cat, int productCount) async {
+    final auth = context.read<AuthProvider>();
+    if (auth.user?.canManageCategories != true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Staff accounts cannot delete categories.'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
     final catProv = context.read<CategoryProvider>();
 
     if (productCount > 0) {
@@ -359,6 +374,16 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   }
 
   void _showAddEditSheet(BuildContext context, Category? category) {
+    final auth = context.read<AuthProvider>();
+    if (auth.user?.canManageCategories != true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Staff accounts cannot create or edit categories.'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

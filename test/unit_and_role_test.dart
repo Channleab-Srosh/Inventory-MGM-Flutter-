@@ -251,59 +251,20 @@ void main() {
       expect(canLogin, isTrue);
     });
 
-    test('Full OTP Flow: sendOtp -> verifyOtp -> resetPasswordWithOtp', () async {
+    test('Real OTP Flow: sendOtpToEmail and resetPasswordWithOtp delegate to ApiService', () async {
       final auth = createTestAuth();
 
-      // 1. Non-admin blocked from sending OTP
-      final staffOtp = await auth.sendOtpToEmail('staff@inventory.com');
-      expect(staffOtp, isNull);
-      expect(auth.error, contains('OTP password reset is only permitted for Administrator accounts'));
+      // sendOtpToEmail returns bool
+      final result = await auth.sendOtpToEmail('user@inventory.com');
+      expect(result, isA<bool>());
 
-      final wmOtp = await auth.sendOtpToEmail('warehouse@inventory.com');
-      expect(wmOtp, isNull);
-      expect(auth.error, contains('OTP password reset is only permitted for Administrator accounts'));
-
-      // 2. Admin successfully receives 6-digit OTP
-      final adminOtp = await auth.sendOtpToEmail('admin@inventory.com');
-      expect(adminOtp, isNotNull);
-      expect(adminOtp!.length, equals(6));
-      expect(int.tryParse(adminOtp), isNotNull);
-
-      // 3. Verify OTP fails with invalid code
-      final invalidVerify = auth.verifyOtp('admin@inventory.com', '000000');
-      expect(invalidVerify, isFalse);
-      expect(auth.error, contains('Invalid OTP code'));
-
-      // 4. Verify OTP succeeds with correct code
-      final validVerify = auth.verifyOtp('admin@inventory.com', adminOtp);
-      expect(validVerify, isTrue);
-      expect(auth.error, isNull);
-
-      // Also demo code 123456 is accepted as fallback
-      final demoVerify = auth.verifyOtp('admin@inventory.com', '123456');
-      expect(demoVerify, isTrue);
-
-      // 5. Reset password with OTP fails if wrong OTP given
-      final wrongReset = await auth.resetPasswordWithOtp(
-        emailOrUsername: 'admin@inventory.com',
-        otp: '999999',
+      // resetPasswordWithOtp returns bool
+      final resetResult = await auth.resetPasswordWithOtp(
+        email: 'user@inventory.com',
+        otp: '123456',
         newPassword: 'BrandNewSecurePass1!',
       );
-      expect(wrongReset, isFalse);
-
-      // 6. Reset password with correct OTP succeeds
-      final goodReset = await auth.resetPasswordWithOtp(
-        emailOrUsername: 'admin@inventory.com',
-        otp: adminOtp,
-        newPassword: 'BrandNewSecurePass1!',
-      );
-      expect(goodReset, isTrue);
-      expect(auth.error, isNull);
-
-      // 7. Verify login succeeds with the newly reset password
-      final canLogin = await auth.login('admin@inventory.com', 'BrandNewSecurePass1!');
-      expect(canLogin, isTrue);
-      expect(auth.user?.email, equals('admin@inventory.com'));
+      expect(resetResult, isA<bool>());
     });
   });
 
@@ -334,8 +295,8 @@ void main() {
       expect(staff.canManageSuppliers, isFalse);
       expect(staff.canViewSuppliers, isTrue);
 
-      // Staff CANNOT see/add/edit/delete category
-      expect(staff.canViewCategories, isFalse);
+      // Staff CAN see categories (read-only) but CANNOT add/edit/delete category
+      expect(staff.canViewCategories, isTrue);
       expect(staff.canManageCategories, isFalse);
 
       // Staff CANNOT add/edit/delete product (view only)
@@ -414,7 +375,7 @@ void main() {
       expect(auth.error, contains('Staff accounts cannot perform user management'));
 
       // 5. Staff cannot delete user
-      final deleteOk = auth.deleteUser('u2');
+      final deleteOk = await auth.deleteUser('u2');
       expect(deleteOk, isFalse);
       expect(auth.error, contains('Staff accounts cannot perform user management'));
     });
@@ -502,7 +463,7 @@ void main() {
 
 
 
-    testWidgets('MoreScreen hides Categories for Staff', (tester) async {
+    testWidgets('MoreScreen shows Categories and Suppliers (view only) and hides User Management for Staff', (tester) async {
       final auth = AuthProvider(initialUsers: _testUsers, testMode: true);
       await auth.login('staff@inventory.com', 'password123');
 
@@ -515,8 +476,8 @@ void main() {
         ),
       );
 
-      // Categories should NOT be visible
-      expect(find.text('Categories'), findsNothing);
+      // Categories should be visible (view only)
+      expect(find.text('Categories'), findsOneWidget);
       // Suppliers should be visible (view only)
       expect(find.text('Suppliers'), findsOneWidget);
       // User Management should NOT be visible

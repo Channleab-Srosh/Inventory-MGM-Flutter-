@@ -102,8 +102,8 @@ class UserProfile {
   bool get canManageSuppliers => !isStaff && (isAdmin || isManager);
   bool get canViewSuppliers => true;
 
-  /// Category permissions: Staff cannot see/add/edit/delete categories
-  bool get canViewCategories => !isStaff && (isAdmin || isManager);
+  /// Category permissions: Staff can view categories (read-only), Admin & Manager can manage
+  bool get canViewCategories => true;
   bool get canManageCategories => !isStaff && (isAdmin || isManager);
 
   /// Product permissions: Staff cannot add/edit/delete products (view only)
@@ -118,7 +118,10 @@ class UserProfile {
   /// Human-friendly display label for the role
   String get roleDisplayName {
     if (isAdmin) return 'Admin';
-    if (isManager) return 'Manager';
+    if (isManager) {
+      if (role.toUpperCase().contains('WAREHOUSE')) return 'Warehouse Manager';
+      return 'Manager';
+    }
     if (isStaff) return 'Staff';
     return role;
   }
@@ -126,7 +129,10 @@ class UserProfile {
   /// Uppercase badge title for the role
   String get roleBadgeLabel {
     if (isAdmin) return 'ADMIN';
-    if (isManager) return 'MANAGER';
+    if (isManager) {
+      if (role.toUpperCase().contains('WAREHOUSE')) return 'WAREHOUSE MANAGER';
+      return 'MANAGER';
+    }
     if (isStaff) return 'STAFF';
     return role.toUpperCase();
   }

@@ -21,9 +21,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _lastNameCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmPasswordCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _otpCtrl = TextEditingController();
 
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
+  bool _otpSent = false;
 
   @override
   void dispose() {
@@ -31,21 +34,70 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailCtrl.dispose();
     _firstNameCtrl.dispose();
     _lastNameCtrl.dispose();
+    _phoneCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmPasswordCtrl.dispose();
+    _otpCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _sendCode() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final auth = context.read<AuthProvider>();
+    final ok = await auth.sendRegistrationOtp(_emailCtrl.text.trim());
+    if (ok && mounted) {
+      setState(() {
+        _otpSent = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Verification code sent to ${_emailCtrl.text.trim()}'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+    }
+  }
+
+  Future<void> _resendCode() async {
+    final email = _emailCtrl.text.trim();
+    final gmailRegex = RegExp(r'^[a-zA-Z0-9._%+\-]+@gmail\.com$');
+    if (!gmailRegex.hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid Gmail address (@gmail.com)'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
+
+    final auth = context.read<AuthProvider>();
+    final ok = await auth.sendRegistrationOtp(email);
+    if (ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('A new verification code was sent to $email'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+    }
   }
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
 
     final auth = context.read<AuthProvider>();
+    final fullName = '${_firstNameCtrl.text.trim()} ${_lastNameCtrl.text.trim()}'.trim();
+    final phone = _phoneCtrl.text.trim().isNotEmpty ? _phoneCtrl.text.trim() : null;
+
     final success = await auth.register(
       username: _usernameCtrl.text.trim(),
       email: _emailCtrl.text.trim(),
-      firstName: _firstNameCtrl.text.trim(),
-      lastName: _lastNameCtrl.text.trim(),
       password: _passwordCtrl.text,
+      fullName: fullName,
+      phone: phone,
+      otp: _otpCtrl.text.trim(),
     );
 
     if (success && mounted) {
@@ -149,8 +201,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         if (v == null || v.trim().isEmpty) {
                           return 'Username is required';
                         }
-                        if (v.trim().length < 3) {
-                          return 'Username must be at least 3 characters';
+                        final len = v.trim().length;
+                        if (len < 3 || len > 50) {
+                          return 'Username must be between 3 and 50 characters';
                         }
                         return null;
                       },
@@ -162,15 +215,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       controller: _emailCtrl,
                       keyboardType: TextInputType.emailAddress,
                       decoration: const InputDecoration(
-                        labelText: 'Email Address',
+                        labelText: 'Email Address (@gmail.com)',
                         prefixIcon: Icon(Icons.email_outlined, size: 20),
                       ),
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) {
                           return 'Email is required';
                         }
-                        if (!v.contains('@') || !v.contains('.')) {
-                          return 'Enter a valid email address';
+                        final gmailRegex = RegExp(r'^[a-zA-Z0-9._%+\-]+@gmail\.com$');
+                        if (!gmailRegex.hasMatch(v.trim())) {
+                          return 'Only Gmail addresses (@gmail.com) are allowed';
                         }
                         return null;
                       },
@@ -203,6 +257,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Phone (Optional)
+                    TextFormField(
+                      controller: _phoneCtrl,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                        labelText: 'Phone (Optional)',
+                        prefixIcon: Icon(Icons.phone_outlined, size: 20),
+                      ),
+                      validator: (v) {
+                        if (v != null && v.trim().length > 20) {
+                          return 'Phone cannot exceed 20 characters';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 14),
 
@@ -260,12 +331,56 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 14),
+
+                    // 6-digit OTP code (only displayed after Send code is tapped)
+                    if (_otpSent) ...[
+                      TextFormField(
+                        controller: _otpCtrl,
+                        keyboardType: TextInputType.number,
+                        maxLength: 6,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 6,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: '6-Digit OTP Code',
+                          hintText: '123456',
+                          counterText: '',
+                          prefixIcon: Icon(Icons.pin_outlined, size: 20),
+                        ),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) {
+                            return 'OTP code is required';
+                          }
+                          if (!RegExp(r'^\d{6}$').hasMatch(v.trim())) {
+                            return 'OTP must be exactly 6 digits';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: auth.loading ? null : _resendCode,
+                          icon: const Icon(Icons.refresh, size: 16),
+                          label: const Text('Resend Code',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                    const SizedBox(height: 10),
 
                     // Submit Button
                     AppButton(
-                      label: 'Create Account',
-                      onPressed: auth.loading ? null : _register,
+                      label: _otpSent ? 'Register' : 'Send code',
+                      onPressed: auth.loading
+                          ? null
+                          : (_otpSent ? _register : _sendCode),
                       isLoading: auth.loading,
                     ),
                     const SizedBox(height: 16),

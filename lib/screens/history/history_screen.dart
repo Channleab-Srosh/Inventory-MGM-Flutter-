@@ -21,19 +21,30 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   final _searchCtrl = TextEditingController();
+  late final ScrollController _scrollCtrl;
   bool _showSearch = false;
 
   @override
   void initState() {
     super.initState();
+    _scrollCtrl = ScrollController()..addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final stock = context.read<StockProvider>();
       if (stock.allMovements.isEmpty) stock.fetchMovements();
     });
   }
 
+  void _onScroll() {
+    if (_scrollCtrl.hasClients &&
+        _scrollCtrl.position.pixels >= _scrollCtrl.position.maxScrollExtent - 200) {
+      context.read<StockProvider>().loadMoreMovements();
+    }
+  }
+
   @override
   void dispose() {
+    _scrollCtrl.removeListener(_onScroll);
+    _scrollCtrl.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -354,9 +365,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   ],
                                 )
                               : ListView.builder(
+                                  controller: _scrollCtrl,
                                   padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 88),
-                                  itemCount: sortedKeys.length,
+                                  itemCount: sortedKeys.length +
+                                      (stock.isLoadingMore ? 1 : 0),
                                   itemBuilder: (_, dayIdx) {
+                                    if (dayIdx == sortedKeys.length) {
+                                      return const Padding(
+                                        padding: EdgeInsets.symmetric(vertical: 16),
+                                        child: Center(
+                                          child: SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(strokeWidth: 2),
+                                          ),
+                                        ),
+                                      );
+                                    }
                                     final key = sortedKeys[dayIdx];
                                     final movements = grouped[key]!;
                                     final date = DateTime.parse(key);

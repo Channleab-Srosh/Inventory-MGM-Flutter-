@@ -4,6 +4,9 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../core/constants/app_constants.dart';
+import 'paged_result.dart';
+
+export 'paged_result.dart';
 
 /// Custom API Exception with HTTP status and server error details
 class ApiException implements Exception {
@@ -39,7 +42,7 @@ class ApiService {
   String? get token => _token;
   bool get hasToken => _token != null && _token!.isNotEmpty;
 
-  static const Duration defaultTimeout = Duration(seconds: 5);
+  static const Duration defaultTimeout = Duration(seconds: 15);
 
   /// Initialize service from local storage
   Future<void> init() async {
@@ -411,6 +414,34 @@ class ApiService {
     return data as Map<String, dynamic>;
   }
 
+  /// Send registration OTP: POST /auth/send-registration-otp
+  Future<void> sendRegistrationOtp(String email) async {
+    await post('/auth/send-registration-otp', body: {'email': email});
+  }
+
+  /// Register: POST /auth/register
+  Future<Map<String, dynamic>> register({
+    required String username,
+    required String email,
+    required String password,
+    required String fullName,
+    String? phone,
+    required String otp,
+  }) async {
+    final data = await post('/auth/register', body: {
+      'username': username,
+      'email': email,
+      'password': password,
+      'fullName': fullName,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
+      'otp': otp,
+    });
+    if (data is Map<String, dynamic> && data['token'] != null) {
+      await setToken(data['token'].toString());
+    }
+    return data as Map<String, dynamic>;
+  }
+
   /// Get current user profile: GET /auth/me
   Future<Map<String, dynamic>> getCurrentUser() async {
     final data = await get('/auth/me');
@@ -457,6 +488,25 @@ class ApiService {
     return [];
   }
 
+  /// Get categories paged: GET /categories
+  Future<PagedResult<Map<String, dynamic>>> getCategoriesPaged({
+    String? search,
+    int page = 0,
+    int size = 20,
+    String sort = 'name,asc',
+  }) async {
+    final data = await get('/categories', queryParams: {
+      if (search != null && search.isNotEmpty) 'search': search,
+      'page': page,
+      'size': size,
+      'sort': sort,
+    });
+    if (data is Map<String, dynamic>) {
+      return PagedResult.fromJson(data, (item) => item as Map<String, dynamic>);
+    }
+    return PagedResult.empty(page: page, size: size);
+  }
+
 
   /// Get category by id: GET /categories/{id}
   Future<Map<String, dynamic>> getCategoryById(dynamic id) async {
@@ -487,6 +537,13 @@ class ApiService {
     await delete('/categories/$id');
   }
 
+  /// Bulk delete categories: DELETE /categories/1,2,3
+  Future<void> deleteCategories(List<int> ids) async {
+    if (ids.isEmpty) return;
+    final idsStr = ids.join(',');
+    await delete('/categories/$idsStr');
+  }
+
   // ==========================================
   // SUPPLIER ENDPOINTS
   // ==========================================
@@ -503,6 +560,25 @@ class ApiService {
       return data['content'] as List<dynamic>;
     }
     return [];
+  }
+
+  /// Get suppliers paged: GET /suppliers
+  Future<PagedResult<Map<String, dynamic>>> getSuppliersPaged({
+    String? search,
+    int page = 0,
+    int size = 20,
+    String sort = 'name,asc',
+  }) async {
+    final data = await get('/suppliers', queryParams: {
+      if (search != null && search.isNotEmpty) 'search': search,
+      'page': page,
+      'size': size,
+      'sort': sort,
+    });
+    if (data is Map<String, dynamic>) {
+      return PagedResult.fromJson(data, (item) => item as Map<String, dynamic>);
+    }
+    return PagedResult.empty(page: page, size: size);
   }
 
 
@@ -550,6 +626,13 @@ class ApiService {
     await delete('/suppliers/$id');
   }
 
+  /// Bulk delete suppliers: DELETE /suppliers/1,2,3
+  Future<void> deleteSuppliers(List<int> ids) async {
+    if (ids.isEmpty) return;
+    final idsStr = ids.join(',');
+    await delete('/suppliers/$idsStr');
+  }
+
   // ==========================================
   // CUSTOMER ENDPOINTS
   // ==========================================
@@ -566,6 +649,25 @@ class ApiService {
       return data['content'] as List<dynamic>;
     }
     return [];
+  }
+
+  /// Get customers paged: GET /customers
+  Future<PagedResult<Map<String, dynamic>>> getCustomersPaged({
+    String? search,
+    int page = 0,
+    int size = 20,
+    String sort = 'id,asc',
+  }) async {
+    final data = await get('/customers', queryParams: {
+      if (search != null && search.isNotEmpty) 'search': search,
+      'page': page,
+      'size': size,
+      'sort': sort,
+    });
+    if (data is Map<String, dynamic>) {
+      return PagedResult.fromJson(data, (item) => item as Map<String, dynamic>);
+    }
+    return PagedResult.empty(page: page, size: size);
   }
 
 
@@ -619,6 +721,13 @@ class ApiService {
     await delete('/customers/$id');
   }
 
+  /// Bulk delete customers: DELETE /customers/1,2,3
+  Future<void> deleteCustomers(List<int> ids) async {
+    if (ids.isEmpty) return;
+    final idsStr = ids.join(',');
+    await delete('/customers/$idsStr');
+  }
+
   // ==========================================
   // PRODUCT ENDPOINTS
   // ==========================================
@@ -648,6 +757,34 @@ class ApiService {
       return data['content'] as List<dynamic>;
     }
     return [];
+  }
+
+  /// Get products paged: GET /products
+  Future<PagedResult<Map<String, dynamic>>> getProductsPaged({
+    String? keyword,
+    dynamic categoryId,
+    dynamic supplierId,
+    bool? active,
+    int page = 0,
+    int size = 20,
+    String sort = 'id,asc',
+  }) async {
+    final parsedCatId = _parseNumericId(categoryId);
+    final parsedSupId = _parseNumericId(supplierId);
+
+    final data = await get('/products', queryParams: {
+      if (keyword != null && keyword.isNotEmpty) 'keyword': keyword,
+      if (parsedCatId != null) 'categoryId': parsedCatId,
+      if (parsedSupId != null) 'supplierId': parsedSupId,
+      if (active != null) 'active': active,
+      'page': page,
+      'size': size,
+      'sort': sort,
+    });
+    if (data is Map<String, dynamic>) {
+      return PagedResult.fromJson(data, (item) => item as Map<String, dynamic>);
+    }
+    return PagedResult.empty(page: page, size: size);
   }
 
 
@@ -733,6 +870,13 @@ class ApiService {
     await delete('/products/$id');
   }
 
+  /// Bulk delete products: DELETE /products/1,2,3
+  Future<void> deleteProducts(List<int> ids) async {
+    if (ids.isEmpty) return;
+    final idsStr = ids.join(',');
+    await delete('/products/$idsStr');
+  }
+
   // ==========================================
   // STOCK ENDPOINTS
   // ==========================================
@@ -805,6 +949,37 @@ class ApiService {
     return [];
   }
 
+  /// Get stock history paged: GET /stock/history
+  Future<PagedResult<Map<String, dynamic>>> getStockHistoryPaged({
+    dynamic productId,
+    dynamic type,
+    dynamic userId,
+    DateTime? fromDate,
+    DateTime? toDate,
+    int page = 0,
+    int size = 20,
+    String sort = 'createdAt,desc',
+  }) async {
+    final parsedProdId = _parseNumericId(productId);
+    final parsedUserId = _parseNumericId(userId);
+    final normType = _normalizeTransactionType(type);
+
+    final data = await get('/stock/history', queryParams: {
+      if (parsedProdId != null) 'productId': parsedProdId,
+      if (normType != null && normType.isNotEmpty) 'type': normType,
+      if (parsedUserId != null) 'userId': parsedUserId,
+      if (fromDate != null) 'fromDate': fromDate.toUtc().toIso8601String(),
+      if (toDate != null) 'toDate': toDate.toUtc().toIso8601String(),
+      'page': page,
+      'size': size,
+      'sort': sort,
+    });
+    if (data is Map<String, dynamic>) {
+      return PagedResult.fromJson(data, (item) => item as Map<String, dynamic>);
+    }
+    return PagedResult.empty(page: page, size: size);
+  }
+
   /// Get stock transaction by id: GET /stock/history/{id}
   Future<Map<String, dynamic>> getStockHistoryById(dynamic id) async {
     final data = await get('/stock/history/$id');
@@ -851,6 +1026,25 @@ class ApiService {
       return data['content'] as List<dynamic>;
     }
     return [];
+  }
+
+  /// Get users paged: GET /users
+  Future<PagedResult<Map<String, dynamic>>> getUsersPaged({
+    String? search,
+    int page = 0,
+    int size = 20,
+    String sort = 'id,asc',
+  }) async {
+    final data = await get('/users', queryParams: {
+      if (search != null && search.isNotEmpty) 'search': search,
+      'page': page,
+      'size': size,
+      'sort': sort,
+    });
+    if (data is Map<String, dynamic>) {
+      return PagedResult.fromJson(data, (item) => item as Map<String, dynamic>);
+    }
+    return PagedResult.empty(page: page, size: size);
   }
 
 
@@ -941,6 +1135,36 @@ class ApiService {
       return data['content'] as List<dynamic>;
     }
     return [];
+  }
+
+  /// Inventory report paged: GET /reports/inventory
+  Future<PagedResult<Map<String, dynamic>>> getInventoryReportPaged({
+    String? keyword,
+    dynamic categoryId,
+    dynamic supplierId,
+    bool? active,
+    bool? lowStockOnly,
+    int page = 0,
+    int size = 20,
+    String sort = 'id,asc',
+  }) async {
+    final parsedCatId = _parseNumericId(categoryId);
+    final parsedSupId = _parseNumericId(supplierId);
+
+    final data = await get('/reports/inventory', queryParams: {
+      if (keyword != null && keyword.isNotEmpty) 'keyword': keyword,
+      if (parsedCatId != null) 'categoryId': parsedCatId,
+      if (parsedSupId != null) 'supplierId': parsedSupId,
+      if (active != null) 'active': active,
+      if (lowStockOnly != null) 'lowStockOnly': lowStockOnly,
+      'page': page,
+      'size': size,
+      'sort': sort,
+    });
+    if (data is Map<String, dynamic>) {
+      return PagedResult.fromJson(data, (item) => item as Map<String, dynamic>);
+    }
+    return PagedResult.empty(page: page, size: size);
   }
 
 

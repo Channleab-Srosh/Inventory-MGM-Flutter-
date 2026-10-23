@@ -35,7 +35,18 @@ class LowStockHorizontalList extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        if (lowStockItems.isEmpty)
+        if (products.isLoadingLowStock && lowStockItems.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          )
+        else if (lowStockItems.isEmpty)
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(

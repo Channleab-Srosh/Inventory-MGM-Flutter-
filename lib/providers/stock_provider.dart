@@ -32,10 +32,21 @@ class StockProvider extends ChangeNotifier {
 
   void clear() {
     _movements = [];
+    _currentPage = 0;
+    _hasMore = true;
+    _isLoadingMore = false;
+    _totalElements = 0;
     _error = null;
     _isLoading = false;
     notifyListeners();
   }
+
+  // Pagination state
+  int _currentPage = 0;
+  static const int _pageSize = 20;
+  bool _hasMore = true;
+  bool _isLoadingMore = false;
+  int _totalElements = 0;
 
   List<StockMovement> get allMovements => List.unmodifiable(_movements);
   List<StockMovement> get filteredMovements => _applyFilters();
@@ -48,24 +59,81 @@ class StockProvider extends ChangeNotifier {
   UserProfile? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  bool get hasMore => _hasMore;
+  bool get isLoadingMore => _isLoadingMore;
+  int get currentPage => _currentPage;
+  int get totalElements => _totalElements;
 
   /// Fetch movements from API
-  Future<void> fetchMovements() async {
+  Future<void> fetchMovements({bool reset = true}) async {
     if (!_api.hasToken) return;
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+    if (reset) {
+      _currentPage = 0;
+      _hasMore = true;
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+    }
 
     try {
-      final list = await _api.getStockHistory(size: 100);
-      _movements = list
-          .map((item) => StockMovement.fromJson(item as Map<String, dynamic>))
+      final paged = await _api.getStockHistoryPaged(
+        productId: _productFilter,
+        type: _typeFilter != null
+            ? (_typeFilter == MovementType.stockIn ? 'STOCK_IN' : 'STOCK_OUT')
+            : null,
+        userId: _userFilter,
+        fromDate: _startDate,
+        toDate: _endDate,
+        page: 0,
+        size: _pageSize,
+      );
+
+      _movements = paged.items
+          .map((item) => StockMovement.fromJson(item))
           .toList();
+      _currentPage = paged.page;
+      _hasMore = !paged.last;
+      _totalElements = paged.totalElements;
       _isLoading = false;
       notifyListeners();
     } catch (e) {
       _isLoading = false;
       _error = (e is ApiException) ? e.message : e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+    }
+  }
+
+  /// Load next page for infinite scrolling
+  Future<void> loadMoreMovements() async {
+    if (!_api.hasToken || !_hasMore || _isLoadingMore || _isLoading) return;
+    _isLoadingMore = true;
+    notifyListeners();
+
+    try {
+      final nextPage = _currentPage + 1;
+      final paged = await _api.getStockHistoryPaged(
+        productId: _productFilter,
+        type: _typeFilter != null
+            ? (_typeFilter == MovementType.stockIn ? 'STOCK_IN' : 'STOCK_OUT')
+            : null,
+        userId: _userFilter,
+        fromDate: _startDate,
+        toDate: _endDate,
+        page: nextPage,
+        size: _pageSize,
+      );
+
+      final newItems = paged.items
+          .map((item) => StockMovement.fromJson(item))
+          .toList();
+      _movements.addAll(newItems);
+      _currentPage = paged.page;
+      _hasMore = !paged.last;
+      _totalElements = paged.totalElements;
+      _isLoadingMore = false;
+      notifyListeners();
+    } catch (_) {
+      _isLoadingMore = false;
       notifyListeners();
     }
   }
@@ -242,24 +310,32 @@ class StockProvider extends ChangeNotifier {
   }
 
   void setTypeFilter(MovementType? t) {
-    _typeFilter = t;
-    notifyListeners();
+    if (_typeFilter != t) {
+      _typeFilter = t;
+      fetchMovements(reset: true);
+    }
   }
 
   void setDateRange(DateTime? start, DateTime? end) {
-    _startDate = start;
-    _endDate = end;
-    notifyListeners();
+    if (_startDate != start || _endDate != end) {
+      _startDate = start;
+      _endDate = end;
+      fetchMovements(reset: true);
+    }
   }
 
   void setProductFilter(String? id) {
-    _productFilter = id;
-    notifyListeners();
+    if (_productFilter != id) {
+      _productFilter = id;
+      fetchMovements(reset: true);
+    }
   }
 
   void setUserFilter(String? id) {
-    _userFilter = id;
-    notifyListeners();
+    if (_userFilter != id) {
+      _userFilter = id;
+      fetchMovements(reset: true);
+    }
   }
 
   void clearFilters() {
@@ -269,7 +345,7 @@ class StockProvider extends ChangeNotifier {
     _endDate = null;
     _productFilter = null;
     _userFilter = null;
-    notifyListeners();
+    fetchMovements(reset: true);
   }
 
   /// Add a new movement locally and return it

@@ -29,11 +29,13 @@ class ProductsScreen extends StatefulWidget {
 
 class _ProductsScreenState extends State<ProductsScreen> {
   final _searchCtrl = TextEditingController();
+  late final ScrollController _scrollCtrl;
   bool _showSearch = false;
 
   @override
   void initState() {
     super.initState();
+    _scrollCtrl = ScrollController()..addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final p = context.read<ProductProvider>();
       if (p.allProducts.isEmpty) p.fetchProducts();
@@ -44,8 +46,17 @@ class _ProductsScreenState extends State<ProductsScreen> {
     });
   }
 
+  void _onScroll() {
+    if (_scrollCtrl.hasClients &&
+        _scrollCtrl.position.pixels >= _scrollCtrl.position.maxScrollExtent - 200) {
+      context.read<ProductProvider>().loadMoreProducts();
+    }
+  }
+
   @override
   void dispose() {
+    _scrollCtrl.removeListener(_onScroll);
+    _scrollCtrl.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -360,10 +371,27 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                     )
                                   // ── Mobile: list ───────────────────────────
                                   : ListView.builder(
+                                      controller: _scrollCtrl,
                                       padding: EdgeInsets.fromLTRB(
                                           hPad, 4, hPad, 100),
-                                      itemCount: filtered.length,
+                                      itemCount: filtered.length +
+                                          (products.isLoadingMore ? 1 : 0),
                                       itemBuilder: (_, i) {
+                                        if (i == filtered.length) {
+                                          return const Padding(
+                                            padding: EdgeInsets.symmetric(
+                                                vertical: 16),
+                                            child: Center(
+                                              child: SizedBox(
+                                                width: 24,
+                                                height: 24,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                        strokeWidth: 2),
+                                              ),
+                                            ),
+                                          );
+                                        }
                                         final product = filtered[i];
                                         final cat = canViewCategories
                                             ? categories
@@ -473,7 +501,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
         MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.4);
     final cardHeight = (112.0 * textScale).clamp(112.0, 148.0);
 
+    final isLoadingMore = context.watch<ProductProvider>().isLoadingMore;
+
     return GridView.builder(
+      controller: _scrollCtrl,
       padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 100),
       gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 460,
@@ -481,8 +512,17 @@ class _ProductsScreenState extends State<ProductsScreen> {
         mainAxisSpacing: 10,
         crossAxisSpacing: 12,
       ),
-      itemCount: filtered.length,
+      itemCount: filtered.length + (isLoadingMore ? 1 : 0),
       itemBuilder: (_, i) {
+        if (i == filtered.length) {
+          return const Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        }
         final product = filtered[i];
         final cat = canViewCategories
             ? categories.findById(product.categoryId)

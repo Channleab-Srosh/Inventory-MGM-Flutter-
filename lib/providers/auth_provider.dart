@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import '../models/user_profile.dart';
 import '../data/api_service.dart';
@@ -20,9 +19,6 @@ class AuthProvider extends ChangeNotifier {
 
   // In-memory custom/updated passwords keyed by userId (used in test mode)
   final Map<String, String> _passwords = {};
-
-  // In-memory active OTP codes keyed by user email (lowercased)
-  final Map<String, String> _emailOtps = {};
 
   AuthProvider({List<UserProfile>? initialUsers, bool testMode = false})
       : _testMode = testMode || initialUsers != null {
@@ -197,33 +193,65 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Register Screen - Creates STAFF role
+  /// Send registration OTP to email
+  Future<bool> sendRegistrationOtp(String email) async {
+    _loading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _api.sendRegistrationOtp(email.trim());
+      _loading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      if (e is ApiException) {
+        _error = e.message;
+      } else {
+        _error = e.toString().replaceFirst('Exception: ', '');
+      }
+      _loading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Register Screen - registers via API and logs in the new user
   Future<bool> register({
     required String username,
     required String email,
-    required String firstName,
-    required String lastName,
     required String password,
+    required String fullName,
+    String? phone,
+    required String otp,
   }) async {
     _loading = true;
     _error = null;
     notifyListeners();
 
     try {
-      // Try creating user on backend
-      final data = await _api.createUser(
+      await _api.register(
         username: username.trim(),
-        email: email.trim().toLowerCase(),
+        email: email.trim(),
         password: password,
-        fullName: '$firstName $lastName'.trim(),
-        role: 'STAFF',
+        fullName: fullName.trim(),
+        phone: phone?.trim(),
+        otp: otp.trim(),
       );
-      final newUser = UserProfile.fromJson(data);
-      _users.add(newUser);
+      final userData = await _api.getCurrentUser();
+      _user = UserProfile.fromJson(userData);
+      await _api.saveStoredUserData(jsonEncode(_user!.toJson()));
+      _isAuthenticated = true;
       _loading = false;
       notifyListeners();
+
+      if (_user!.isAdmin) {
+        fetchUsers();
+      }
       return true;
     } catch (e) {
+      _user = null;
+      _isAuthenticated = false;
       if (e is ApiException) {
         _error = e.message;
       } else {
@@ -308,84 +336,32 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Request password reset OTP
-  Future<String?> sendOtpToEmail(String emailOrUsername) async {
+  /// Request password reset OTP from backend
+  Future<bool> sendOtpToEmail(String email) async {
     _loading = true;
     _error = null;
     notifyListeners();
 
-    final target = findUserByEmailOrUsername(emailOrUsername);
-    if (target == null) {
-      _error = 'No account found with this email or username.';
-      _loading = false;
-      notifyListeners();
-      return null;
-    }
-
-    if (!target.isAdmin) {
-      _error =
-          'Account "${target.name}" is registered as ${target.roleDisplayName}. OTP password reset is only permitted for Administrator accounts.';
-      _loading = false;
-      notifyListeners();
-      return null;
-    }
-
     try {
-      await _api.forgotPassword(target.email);
+      await _api.forgotPassword(email.trim());
+      _loading = false;
+      notifyListeners();
+      return true;
     } catch (e) {
       if (e is ApiException) {
         _error = e.message;
-        _loading = false;
-        notifyListeners();
-        return null;
+      } else {
+        _error = e.toString().replaceFirst('Exception: ', '');
       }
-    }
-
-    final random = Random();
-    final otp = (100000 + random.nextInt(900000)).toString();
-    _emailOtps[target.email.toLowerCase()] = otp;
-
-    _loading = false;
-    _error = null;
-    notifyListeners();
-    return otp;
-  }
-
-  /// Verifies OTP code
-  bool verifyOtp(String emailOrUsername, String enteredOtp) {
-    _error = null;
-    final target = findUserByEmailOrUsername(emailOrUsername);
-    if (target == null) {
-      _error = 'No account found with this email or username.';
+      _loading = false;
       notifyListeners();
       return false;
     }
-
-    if (!target.isAdmin) {
-      _error = 'Only administrator accounts can perform OTP verification.';
-      notifyListeners();
-      return false;
-    }
-
-    final cleanOtp = enteredOtp.trim();
-    final savedOtp = _emailOtps[target.email.toLowerCase()];
-
-    final isValid =
-        (savedOtp != null && cleanOtp == savedOtp) || cleanOtp == '123456';
-    if (!isValid) {
-      _error = 'Invalid OTP code. Please check your email and try again.';
-      notifyListeners();
-      return false;
-    }
-
-    _error = null;
-    notifyListeners();
-    return true;
   }
 
   /// Resets password using OTP via backend API
   Future<bool> resetPasswordWithOtp({
-    required String emailOrUsername,
+    required String email,
     required String otp,
     required String newPassword,
   }) async {
@@ -393,44 +369,22 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    final target = findUserByEmailOrUsername(emailOrUsername);
-    if (target == null) {
-      _error = 'No account found with this email or username.';
-      _loading = false;
-      notifyListeners();
-      return false;
-    }
-
-    if (!target.isAdmin) {
-      _error = 'Only administrator accounts can reset passwords.';
-      _loading = false;
-      notifyListeners();
-      return false;
-    }
-
-    if (!verifyOtp(emailOrUsername, otp)) {
-      _loading = false;
-      return false;
-    }
-
     try {
-      await _api.resetPassword(target.email, otp, newPassword);
+      await _api.resetPassword(email.trim(), otp.trim(), newPassword);
+      _loading = false;
+      _error = null;
+      notifyListeners();
+      return true;
     } catch (e) {
       if (e is ApiException) {
         _error = e.message;
-        _loading = false;
-        notifyListeners();
-        return false;
+      } else {
+        _error = e.toString().replaceFirst('Exception: ', '');
       }
+      _loading = false;
+      notifyListeners();
+      return false;
     }
-
-    _passwords[target.id] = newPassword;
-    _emailOtps.remove(target.email.toLowerCase());
-
-    _loading = false;
-    _error = null;
-    notifyListeners();
-    return true;
   }
 
   /// Self-service password reset (Allowed for ADMIN accounts)

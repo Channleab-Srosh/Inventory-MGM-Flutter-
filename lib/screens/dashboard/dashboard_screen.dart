@@ -58,6 +58,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     await Future.wait([
       products.fetchProducts(),
+      products.loadLowStock(),
       stock.fetchMovements(),
       categories.fetchCategories(),
       suppliers.fetchSuppliers(),

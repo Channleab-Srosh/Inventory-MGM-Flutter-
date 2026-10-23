@@ -85,6 +85,7 @@ class _StockOutFormState extends State<StockOutForm> {
         note: note,
       );
       products.adjustQuantity(_selectedProduct!.id, -_quantity);
+      products.loadLowStock();
     } catch (e) {
       if (mounted) {
         setState(() => _submitting = false);
