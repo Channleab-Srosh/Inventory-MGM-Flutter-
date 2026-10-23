@@ -34,6 +34,7 @@ class AppConstants {
   static const routeMore = '/more';
   static const routeCategories = '/more/categories';
   static const routeSuppliers = '/more/suppliers';
+  static const routeCustomers = '/more/customers';
   static const routeUsers = '/more/users';
   static const routeSettings = '/more/settings';
 

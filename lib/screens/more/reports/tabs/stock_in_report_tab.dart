@@ -9,8 +9,8 @@ import 'package:inventory_management/models/stock_movement.dart';
 import '../widgets/report_header_banner.dart';
 
 /// Stock In Report Tab
-/// Displays incoming stock metrics, shipments count, and transaction cards.
-class StockInReportTab extends StatelessWidget {
+/// Displays incoming stock metrics, shipments count, and transaction cards backed by ReportController.
+class StockInReportTab extends StatefulWidget {
   final DateTimeRange dateRange;
   final String periodLabel;
 
@@ -21,15 +21,54 @@ class StockInReportTab extends StatelessWidget {
   });
 
   @override
+  State<StockInReportTab> createState() => _StockInReportTabState();
+}
+
+class _StockInReportTabState extends State<StockInReportTab> {
+  List<StockMovement>? _reportMovements;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchReport();
+  }
+
+  @override
+  void didUpdateWidget(covariant StockInReportTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.dateRange != widget.dateRange) {
+      _fetchReport();
+    }
+  }
+
+  Future<void> _fetchReport() async {
+    setState(() => _isLoading = true);
+    final stock = context.read<StockProvider>();
+    final results = await stock.fetchTransactionReport(
+      type: 'STOCK_IN',
+      fromDate: widget.dateRange.start,
+      toDate: widget.dateRange.end,
+    );
+    if (mounted) {
+      setState(() {
+        _reportMovements = results;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final stock = context.watch<StockProvider>();
     final suppliers = context.watch<SupplierProvider>();
 
-    final inMovements = stock.getMovementsBetween(
-      dateRange.start,
-      dateRange.end,
-      type: MovementType.stockIn,
-    );
+    final inMovements = _reportMovements ??
+        stock.getMovementsBetween(
+          widget.dateRange.start,
+          widget.dateRange.end,
+          type: MovementType.stockIn,
+        );
 
     final totalQuantity = inMovements.fold<int>(0, (s, m) => s + m.quantity);
     final totalBatches = inMovements.length;
@@ -39,7 +78,7 @@ class StockInReportTab extends StatelessWidget {
       children: [
         ReportHeaderBanner(
           title: 'Stock In Report',
-          period: periodLabel,
+          period: widget.periodLabel,
           subtitle: 'Incoming inventory, supplier receipts, and restock records',
         ),
         const SizedBox(height: 16),
@@ -69,7 +108,14 @@ class StockInReportTab extends StatelessWidget {
 
         SectionHeader(title: 'Incoming Transactions ($totalBatches)'),
         const SizedBox(height: 8),
-        if (inMovements.isEmpty)
+        if (_isLoading)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32),
+              child: CircularProgressIndicator(),
+            ),
+          )
+        else if (inMovements.isEmpty)
           const EmptyState(
             message: 'No Stock In records in this period',
             subtitle: 'Change the date range filter above to view earlier records',

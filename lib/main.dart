@@ -7,6 +7,7 @@ import 'providers/auth_provider.dart';
 import 'providers/product_provider.dart';
 import 'providers/category_provider.dart';
 import 'providers/supplier_provider.dart';
+import 'providers/customer_provider.dart';
 import 'providers/stock_provider.dart';
 import 'providers/settings_provider.dart';
 
@@ -56,6 +57,19 @@ class InventoryApp extends StatelessWidget {
               sp.clear();
             }
             return sp;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, CustomerProvider>(
+          create: (_) => CustomerProvider(),
+          update: (_, auth, prev) {
+            final cp = prev ?? CustomerProvider();
+            cp.updateUser(auth.user);
+            if (auth.isAuthenticated && cp.allCustomers.isEmpty && !cp.isLoading) {
+              cp.fetchCustomers();
+            } else if (!auth.isAuthenticated && cp.allCustomers.isNotEmpty) {
+              cp.clear();
+            }
+            return cp;
           },
         ),
         ChangeNotifierProxyProvider2<AuthProvider, CategoryProvider, ProductProvider>(

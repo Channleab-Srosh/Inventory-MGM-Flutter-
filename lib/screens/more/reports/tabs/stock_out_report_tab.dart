@@ -8,8 +8,8 @@ import 'package:inventory_management/models/stock_movement.dart';
 import '../widgets/report_header_banner.dart';
 
 /// Stock Out Report Tab
-/// Displays dispatched goods, sales fulfillment, damaged items, and reasons breakdown.
-class StockOutReportTab extends StatelessWidget {
+/// Displays dispatched goods, sales fulfillment, damaged items, backed by ReportController.
+class StockOutReportTab extends StatefulWidget {
   final DateTimeRange dateRange;
   final String periodLabel;
 
@@ -20,14 +20,53 @@ class StockOutReportTab extends StatelessWidget {
   });
 
   @override
+  State<StockOutReportTab> createState() => _StockOutReportTabState();
+}
+
+class _StockOutReportTabState extends State<StockOutReportTab> {
+  List<StockMovement>? _reportMovements;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchReport();
+  }
+
+  @override
+  void didUpdateWidget(covariant StockOutReportTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.dateRange != widget.dateRange) {
+      _fetchReport();
+    }
+  }
+
+  Future<void> _fetchReport() async {
+    setState(() => _isLoading = true);
+    final stock = context.read<StockProvider>();
+    final results = await stock.fetchTransactionReport(
+      type: 'STOCK_OUT',
+      fromDate: widget.dateRange.start,
+      toDate: widget.dateRange.end,
+    );
+    if (mounted) {
+      setState(() {
+        _reportMovements = results;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final stock = context.watch<StockProvider>();
 
-    final outMovements = stock.getMovementsBetween(
-      dateRange.start,
-      dateRange.end,
-      type: MovementType.stockOut,
-    );
+    final outMovements = _reportMovements ??
+        stock.getMovementsBetween(
+          widget.dateRange.start,
+          widget.dateRange.end,
+          type: MovementType.stockOut,
+        );
 
     final totalQuantity = outMovements.fold<int>(0, (s, m) => s + m.quantity);
     final totalSales = outMovements
@@ -42,7 +81,7 @@ class StockOutReportTab extends StatelessWidget {
       children: [
         ReportHeaderBanner(
           title: 'Stock Out Report',
-          period: periodLabel,
+          period: widget.periodLabel,
           subtitle: 'Dispatched goods, sales fulfillment, and damaged stock write-offs',
         ),
         const SizedBox(height: 16),
@@ -94,7 +133,14 @@ class StockOutReportTab extends StatelessWidget {
 
         SectionHeader(title: 'Dispatched Transactions (${outMovements.length})'),
         const SizedBox(height: 8),
-        if (outMovements.isEmpty)
+        if (_isLoading)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32),
+              child: CircularProgressIndicator(),
+            ),
+          )
+        else if (outMovements.isEmpty)
           const EmptyState(
             message: 'No Stock Out records in this period',
             subtitle: 'Try changing the date filter at the top',

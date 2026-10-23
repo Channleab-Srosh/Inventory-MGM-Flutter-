@@ -3,10 +3,12 @@ import 'package:provider/provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/product_provider.dart';
 import '../../../providers/stock_provider.dart';
+import '../../../providers/customer_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../../models/stock_movement.dart';
 import '../../../models/product.dart';
+import '../../../models/customer.dart';
 import 'stock_form_components.dart';
 
 /// Form widget for recording Stock Out
@@ -20,6 +22,7 @@ class StockOutForm extends StatefulWidget {
 class _StockOutFormState extends State<StockOutForm> {
   final _formKey = GlobalKey<FormState>();
   Product? _selectedProduct;
+  Customer? _selectedCustomer;
   int _quantity = 1;
   StockOutReason _reason = StockOutReason.sale;
   final _noteCtrl = TextEditingController();
@@ -71,6 +74,7 @@ class _StockOutFormState extends State<StockOutForm> {
     try {
       final noteParts = [
         'Reason: ${_reason.name}',
+        if (_selectedCustomer != null) 'Customer: ${_selectedCustomer!.name}',
         if (_noteCtrl.text.trim().isNotEmpty) _noteCtrl.text.trim(),
       ];
       final note = noteParts.join(' - ');
@@ -96,6 +100,7 @@ class _StockOutFormState extends State<StockOutForm> {
       setState(() {
         _submitting = false;
         _selectedProduct = null;
+        _selectedCustomer = null;
         _quantity = 1;
         _reason = StockOutReason.sale;
         _noteCtrl.clear();
@@ -215,6 +220,36 @@ class _StockOutFormState extends State<StockOutForm> {
                 }).toList(),
               ),
               const SizedBox(height: 12),
+
+              // Customer selector
+              Consumer<CustomerProvider>(
+                builder: (context, custProv, _) {
+                  final customers = custProv.allCustomers;
+                  if (customers.isEmpty) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: DropdownButtonFormField<Customer?>(
+                      isExpanded: true,
+                      initialValue: _selectedCustomer,
+                      decoration: const InputDecoration(
+                        labelText: 'Customer (Optional)',
+                        prefixIcon: Icon(Icons.person_outline, size: 20),
+                      ),
+                      items: [
+                        const DropdownMenuItem<Customer?>(
+                          value: null,
+                          child: Text('No Customer Selected'),
+                        ),
+                        ...customers.map((c) => DropdownMenuItem<Customer?>(
+                              value: c,
+                              child: Text('${c.name} (${c.phone})', overflow: TextOverflow.ellipsis),
+                            )),
+                      ],
+                      onChanged: (val) => setState(() => _selectedCustomer = val),
+                    ),
+                  );
+                },
+              ),
 
               DatePickerField(
                 date: _date,

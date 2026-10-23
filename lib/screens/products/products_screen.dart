@@ -394,6 +394,30 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                                                       12)),
                                                     ),
                                                     SlidableAction(
+                                                      onPressed: (_) async {
+                                                        final ok = await products.toggleProductStatus(product.id);
+                                                        if (context.mounted && ok) {
+                                                          ScaffoldMessenger.of(context).showSnackBar(
+                                                            SnackBar(
+                                                              content: Text(
+                                                                '${product.name} is now ${product.status == "Active" ? "Inactive" : "Active"}',
+                                                              ),
+                                                            ),
+                                                          );
+                                                        }
+                                                      },
+                                                      backgroundColor: product.status == 'Active'
+                                                          ? const Color(0xFFD97706)
+                                                          : AppColors.inStock,
+                                                      foregroundColor: Colors.white,
+                                                      icon: product.status == 'Active'
+                                                          ? Icons.block_outlined
+                                                          : Icons.check_circle_outline,
+                                                      label: product.status == 'Active'
+                                                          ? 'Deactivate'
+                                                          : 'Activate',
+                                                    ),
+                                                    SlidableAction(
                                                       onPressed: (_) =>
                                                           _deleteProduct(
                                                               context, product),
@@ -478,6 +502,30 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       label: 'Edit',
                       borderRadius: const BorderRadius.horizontal(
                           left: Radius.circular(12)),
+                    ),
+                    SlidableAction(
+                      onPressed: (_) async {
+                        final ok = await context
+                            .read<ProductProvider>()
+                            .toggleProductStatus(product.id);
+                        if (context.mounted && ok) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                '${product.name} is now ${product.status == "Active" ? "Inactive" : "Active"}',
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      backgroundColor: product.status == 'Active'
+                          ? const Color(0xFFD97706)
+                          : AppColors.inStock,
+                      foregroundColor: Colors.white,
+                      icon: product.status == 'Active'
+                          ? Icons.block_outlined
+                          : Icons.check_circle_outline,
+                      label: product.status == 'Active' ? 'Deactivate' : 'Activate',
                     ),
                     SlidableAction(
                       onPressed: (_) => _deleteProduct(context, product),

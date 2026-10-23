@@ -5,6 +5,7 @@ import 'package:inventory_management/providers/stock_provider.dart';
 import 'package:inventory_management/core/theme/app_theme.dart';
 import 'package:inventory_management/core/utils/app_utils.dart';
 import 'package:inventory_management/models/product.dart';
+import 'package:inventory_management/models/dashboard_summary.dart';
 
 /// Bento Metric Grid matching Image 1:
 /// 2x2 grid of square cards (24px radius):
@@ -15,11 +16,13 @@ import 'package:inventory_management/models/product.dart';
 class DashboardSummaryGrid extends StatefulWidget {
   final ProductProvider products;
   final StockProvider stock;
+  final DashboardSummary? summary;
 
   const DashboardSummaryGrid({
     super.key,
     required this.products,
     required this.stock,
+    this.summary,
   });
 
   @override
@@ -35,20 +38,24 @@ class _DashboardSummaryGridState extends State<DashboardSummaryGrid> {
 
   @override
   Widget build(BuildContext context) {
-    // Calculate total stock value: sum of (quantity * price)
-    final double totalStockValue = widget.products.allProducts.fold<double>(
-      0.0,
-      (sum, p) => sum + (p.quantity * p.price),
-    );
-    final String formattedStockValue = totalStockValue > 0
-        ? AppUtils.formatCurrency(totalStockValue)
-        : '\$${widget.products.totalProducts * 1250}';
+    // Total stock value from backend summary or local fallback
+    final double totalStockValue = widget.summary != null
+        ? widget.summary!.totalInventoryValue
+        : widget.products.allProducts.fold<double>(
+            0.0,
+            (sum, p) => sum + (p.quantity * p.price),
+          );
+    final String formattedStockValue = AppUtils.formatCurrency(totalStockValue);
 
-    final String formattedTotalStock = AppUtils.formatNumber(widget.products.totalQuantity);
-    final String formattedOutOfStock =
-        widget.products.outOfStockCount.toString().padLeft(2, '0');
-    final String formattedLowStock =
-        widget.products.lowStockCount.toString().padLeft(2, '0');
+    final String formattedTotalStock = widget.summary != null
+        ? AppUtils.formatNumber(widget.summary!.totalStockQuantity)
+        : AppUtils.formatNumber(widget.products.totalQuantity);
+    final String formattedOutOfStock = widget.summary != null
+        ? widget.summary!.outOfStockCount.toString().padLeft(2, '0')
+        : widget.products.outOfStockCount.toString().padLeft(2, '0');
+    final String formattedLowStock = widget.summary != null
+        ? widget.summary!.lowStockCount.toString().padLeft(2, '0')
+        : widget.products.lowStockCount.toString().padLeft(2, '0');
 
     return LayoutBuilder(
       builder: (context, constraints) {

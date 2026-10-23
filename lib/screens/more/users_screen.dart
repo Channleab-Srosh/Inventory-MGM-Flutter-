@@ -97,6 +97,7 @@ class _UsersScreenState extends State<UsersScreen> {
     }).toList();
 
     final adminCount = allUsers.where((u) => u.isAdmin).length;
+    final managerCount = allUsers.where((u) => u.isManager).length;
     final staffCount = allUsers.where((u) => u.isStaff).length;
     final activeCount = allUsers.where((u) => u.isActive).length;
 
@@ -141,6 +142,13 @@ class _UsersScreenState extends State<UsersScreen> {
                   selected: _selectedRole == 'ADMIN',
                   color: AppColors.primary,
                   onSelected: (val) => setState(() => _selectedRole = val ? 'ADMIN' : null),
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: 'Manager ($managerCount)',
+                  selected: _selectedRole == 'MANAGER',
+                  color: const Color(0xFFD97706),
+                  onSelected: (val) => setState(() => _selectedRole = val ? 'MANAGER' : null),
                 ),
                 const SizedBox(width: 8),
                 _FilterChip(
@@ -196,6 +204,7 @@ class _UsersScreenState extends State<UsersScreen> {
                           onEdit: () => AddEditUserSheet.show(context, user: u),
                           onChangeRole: () => _handleRoleChange(context, auth, u),
                           onToggleStatus: () => _handleToggleStatus(context, auth, u),
+                          onDelete: isCurrentLoggedIn ? null : () => _handleDeleteUser(context, auth, u),
                         );
                       },
                     ),
@@ -254,6 +263,30 @@ class _UsersScreenState extends State<UsersScreen> {
             backgroundColor: AppColors.primary,
           ),
         );
+      }
+    }
+  }
+
+  Future<void> _handleDeleteUser(BuildContext context, AuthProvider auth, UserProfile target) async {
+    final confirmed = await ConfirmDialog.show(
+      context,
+      title: 'Delete User',
+      message: 'Are you sure you want to permanently delete user "${target.name}"? This action cannot be undone.',
+      confirmLabel: 'Delete',
+      confirmColor: AppColors.danger,
+    );
+    if (confirmed && context.mounted) {
+      final ok = await auth.deleteUser(target.id);
+      if (context.mounted) {
+        if (ok) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('User "${target.name}" deleted successfully.')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(auth.error ?? 'Failed to delete user'), backgroundColor: AppColors.danger),
+          );
+        }
       }
     }
   }

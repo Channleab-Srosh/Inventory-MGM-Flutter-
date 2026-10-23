@@ -79,38 +79,46 @@ class UserProfile {
   }
 
   static const String roleAdmin = 'ADMIN';
+  static const String roleManager = 'MANAGER';
   static const String roleWarehouseManager = 'WAREHOUSE_MANAGER';
   static const String roleStaff = 'STAFF';
 
   bool get isAdmin => role.toUpperCase() == 'ADMIN';
-  bool get isWarehouseManager =>
+  bool get isManager =>
+      role.toUpperCase() == 'MANAGER' ||
       role.toUpperCase() == 'WAREHOUSE_MANAGER' ||
       role.toUpperCase() == 'WAREHOUSE MANAGER';
+  bool get isWarehouseManager => isManager;
   bool get isStaff => role.toUpperCase() == 'STAFF';
   bool get isActive => status.toLowerCase() == 'active';
 
   /// Role-based permissions
   /// Staff cannot manage users.
   bool get canManageUsers => isAdmin && !isStaff;
-  bool get canStockOut => true; // Staff, Warehouse Manager, and Admin can all perform stock out
+  bool get canStockOut => true; // Staff, Manager, and Admin can all perform stock out
   bool get canStockIn => true;
 
   /// Supplier permissions: Staff cannot add/edit/delete suppliers (view only)
-  bool get canManageSuppliers => !isStaff && (isAdmin || isWarehouseManager);
+  bool get canManageSuppliers => !isStaff && (isAdmin || isManager);
   bool get canViewSuppliers => true;
 
   /// Category permissions: Staff cannot see/add/edit/delete categories
-  bool get canViewCategories => !isStaff && (isAdmin || isWarehouseManager);
-  bool get canManageCategories => !isStaff && (isAdmin || isWarehouseManager);
+  bool get canViewCategories => !isStaff && (isAdmin || isManager);
+  bool get canManageCategories => !isStaff && (isAdmin || isManager);
 
   /// Product permissions: Staff cannot add/edit/delete products (view only)
-  bool get canManageProducts => !isStaff && (isAdmin || isWarehouseManager);
+  bool get canManageProducts => !isStaff && (isAdmin || isManager);
   bool get canViewProducts => true;
+
+  /// Customer permissions: Staff can view; Admin and Manager can create/update/status; Admin can delete
+  bool get canViewCustomers => true;
+  bool get canManageCustomers => !isStaff && (isAdmin || isManager);
+  bool get canDeleteCustomers => isAdmin;
 
   /// Human-friendly display label for the role
   String get roleDisplayName {
     if (isAdmin) return 'Admin';
-    if (isWarehouseManager) return 'Warehouse Manager';
+    if (isManager) return 'Manager';
     if (isStaff) return 'Staff';
     return role;
   }
@@ -118,7 +126,7 @@ class UserProfile {
   /// Uppercase badge title for the role
   String get roleBadgeLabel {
     if (isAdmin) return 'ADMIN';
-    if (isWarehouseManager) return 'WAREHOUSE MANAGER';
+    if (isManager) return 'MANAGER';
     if (isStaff) return 'STAFF';
     return role.toUpperCase();
   }

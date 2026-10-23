@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import '../models/user_profile.dart';
@@ -28,6 +29,11 @@ class AuthProvider extends ChangeNotifier {
     if (initialUsers != null) {
       _users = List.from(initialUsers);
     }
+    _api.onSessionExpired = () {
+      _isAuthenticated = false;
+      _user = null;
+      notifyListeners();
+    };
     if (!_testMode) {
       initAuth();
     }
@@ -50,24 +56,38 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Initialize auth state from local token
+  /// Initialize auth state from local token & cached session
   Future<void> initAuth() async {
     await _api.init();
+
+    // 1. Attempt to restore cached user session first for seamless startup
+    final storedUserJson = await _api.getStoredUserData();
+    if (storedUserJson != null && storedUserJson.isNotEmpty) {
+      try {
+        _user = UserProfile.fromJson(jsonDecode(storedUserJson));
+        _isAuthenticated = _api.hasToken;
+        notifyListeners();
+      } catch (_) {}
+    }
+
+    // 2. If token exists, verify & refresh profile from backend
     if (_api.hasToken) {
       try {
         final userData = await _api.getCurrentUser();
         _user = UserProfile.fromJson(userData);
+        await _api.saveStoredUserData(jsonEncode(_user!.toJson()));
         _isAuthenticated = true;
         notifyListeners();
         if (_user!.isAdmin) {
           fetchUsers();
         }
-      } catch (_) {
-        // Token might be expired, clear it
-        await _api.clearToken();
-        _isAuthenticated = false;
-        _user = null;
-        notifyListeners();
+      } catch (e) {
+        if (e is ApiException && e.statusCode == 401) {
+          await _api.clearToken();
+          _isAuthenticated = false;
+          _user = null;
+          notifyListeners();
+        }
       }
     }
   }
@@ -128,6 +148,7 @@ class AuthProvider extends ChangeNotifier {
       await _api.login(cleanInput, password);
       final userData = await _api.getCurrentUser();
       _user = UserProfile.fromJson(userData);
+      await _api.saveStoredUserData(jsonEncode(_user!.toJson()));
       _isAuthenticated = true;
       _loading = false;
       notifyListeners();
@@ -311,7 +332,14 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       await _api.forgotPassword(target.email);
-    } catch (_) {}
+    } catch (e) {
+      if (e is ApiException) {
+        _error = e.message;
+        _loading = false;
+        notifyListeners();
+        return null;
+      }
+    }
 
     final random = Random();
     final otp = (100000 + random.nextInt(900000)).toString();
@@ -387,7 +415,14 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       await _api.resetPassword(target.email, otp, newPassword);
-    } catch (_) {}
+    } catch (e) {
+      if (e is ApiException) {
+        _error = e.message;
+        _loading = false;
+        notifyListeners();
+        return false;
+      }
+    }
 
     _passwords[target.id] = newPassword;
     _emailOtps.remove(target.email.toLowerCase());
@@ -593,19 +628,34 @@ class AuthProvider extends ChangeNotifier {
     return false;
   }
 
-  /// Delete user (Admin only - Staff cannot do user management)
-  bool deleteUser(String userId) {
+  /// Delete user via API (Admin only - Staff cannot do user management)
+  Future<bool> deleteUser(String userId) async {
     if (_user != null && !_user!.canManageUsers) {
       _error = 'Permission denied: Staff accounts cannot perform user management.';
       notifyListeners();
       return false;
     }
     if (_user?.id == userId) {
+      _error = 'Cannot delete your own account.';
+      notifyListeners();
       return false; // Cannot delete self
     }
-    _users.removeWhere((u) => u.id == userId);
+    _loading = true;
+    _error = null;
     notifyListeners();
-    return true;
+
+    try {
+      await _api.deleteUser(userId);
+      _users.removeWhere((u) => u.id == userId);
+      _loading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _loading = false;
+      _error = (e is ApiException) ? e.message : e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
   }
 
   /// Logout

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/product.dart';
 import '../models/user_profile.dart';
+import '../models/inventory_report.dart';
 import '../data/api_service.dart';
 
 /// Manages product list with real backend fetching, search/filter, and CRUD support
@@ -150,6 +151,31 @@ class ProductProvider extends ChangeNotifier {
     _selectedSupplierId = null;
     _statusFilter = null;
     notifyListeners();
+  }
+
+  /// Fetch inventory report from ReportController: GET /reports/inventory
+  Future<List<InventoryReportItem>> fetchInventoryReport({
+    String? keyword,
+    dynamic categoryId,
+    dynamic supplierId,
+    bool? active,
+    bool? lowStockOnly,
+  }) async {
+    try {
+      final list = await _api.getInventoryReport(
+        keyword: keyword,
+        categoryId: categoryId,
+        supplierId: supplierId,
+        active: active,
+        lowStockOnly: lowStockOnly,
+        size: 100,
+      );
+      return list
+          .map((item) => InventoryReportItem.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   // ---- CRUD ----

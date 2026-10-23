@@ -228,6 +228,10 @@ class _AddEditUserSheetState extends State<AddEditUserSheet> {
                     child: Text('ADMIN (Full Access)', overflow: TextOverflow.ellipsis),
                   ),
                   DropdownMenuItem(
+                    value: 'MANAGER',
+                    child: Text('MANAGER (Inventory Management)', overflow: TextOverflow.ellipsis),
+                  ),
+                  DropdownMenuItem(
                     value: 'STAFF',
                     child: Text('STAFF (Standard Operations)', overflow: TextOverflow.ellipsis),
                   ),
@@ -286,7 +290,7 @@ class _AddEditUserSheetState extends State<AddEditUserSheet> {
 class UserRoleDialog {
   static Future<String?> show(BuildContext context, {required UserProfile target}) {
     String selectedRole = target.role.toUpperCase();
-    if (selectedRole != 'ADMIN' && selectedRole != 'STAFF') {
+    if (selectedRole != 'ADMIN' && selectedRole != 'MANAGER' && selectedRole != 'STAFF') {
       selectedRole = 'STAFF';
     }
 
@@ -318,6 +322,13 @@ class UserRoleDialog {
                           value: 'ADMIN',
                           title: Text('ADMIN'),
                           subtitle: Text('Full system access and user management', style: TextStyle(fontSize: 12)),
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        RadioListTile<String>(
+                          value: 'MANAGER',
+                          title: Text('MANAGER'),
+                          subtitle: Text('Product & inventory management without user administration', style: TextStyle(fontSize: 12)),
                           dense: true,
                           contentPadding: EdgeInsets.zero,
                         ),

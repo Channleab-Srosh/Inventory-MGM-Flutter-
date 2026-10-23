@@ -70,6 +70,37 @@ class StockProvider extends ChangeNotifier {
     }
   }
 
+  /// Fetch stock transactions report from ReportController: GET /reports/stock-transactions
+  Future<List<StockMovement>> fetchTransactionReport({
+    String? productId,
+    String? type,
+    String? userId,
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    try {
+      final list = await _api.getStockTransactionReport(
+        productId: productId,
+        type: type,
+        userId: userId,
+        fromDate: fromDate,
+        toDate: toDate,
+        size: 100,
+      );
+      return list
+          .map((item) => StockMovement.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return getMovementsBetween(
+        fromDate ?? DateTime(2000),
+        toDate ?? DateTime.now(),
+        type: type != null
+            ? (type.contains('IN') ? MovementType.stockIn : MovementType.stockOut)
+            : null,
+      );
+    }
+  }
+
   /// Perform Stock In via API
   Future<StockMovement?> recordStockIn({
     required String productId,

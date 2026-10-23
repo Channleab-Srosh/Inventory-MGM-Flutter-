@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../core/constants/app_constants.dart';
 
 /// Custom API Exception with HTTP status and server error details
@@ -23,10 +24,16 @@ class ApiService {
   ApiService._internal();
 
   static const String _prefTokenKey = 'auth_token';
+  static const String _prefUserKey = 'auth_user_data';
   static const String _prefBaseUrlKey = 'api_base_url';
+
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   String _baseUrl = AppConstants.defaultBaseUrl;
   String? _token;
+
+  /// Global callback when 401 Unauthorized occurs
+  void Function()? onSessionExpired;
 
   String get baseUrl => _baseUrl;
   String? get token => _token;
@@ -38,7 +45,12 @@ class ApiService {
   Future<void> init() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      _token = prefs.getString(_prefTokenKey);
+      try {
+        _token = await _secureStorage.read(key: _prefTokenKey);
+      } catch (_) {}
+      if (_token == null || _token!.isEmpty) {
+        _token = prefs.getString(_prefTokenKey);
+      }
       final savedBaseUrl = prefs.getString(_prefBaseUrlKey);
       if (savedBaseUrl != null &&
           savedBaseUrl.trim().isNotEmpty &&
@@ -54,9 +66,16 @@ class ApiService {
     }
   }
 
-  /// Update JWT token
+  /// Update JWT token in secure storage & shared preferences
   Future<void> setToken(String? token) async {
     _token = token;
+    try {
+      if (token != null) {
+        await _secureStorage.write(key: _prefTokenKey, value: token);
+      } else {
+        await _secureStorage.delete(key: _prefTokenKey);
+      }
+    } catch (_) {}
     try {
       final prefs = await SharedPreferences.getInstance();
       if (token != null) {
@@ -67,9 +86,36 @@ class ApiService {
     } catch (_) {}
   }
 
-  /// Clear token on logout
+  /// Persist user profile data locally
+  Future<void> saveStoredUserData(String userJson) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_prefUserKey, userJson);
+    } catch (_) {}
+  }
+
+  /// Retrieve stored user profile data locally
+  Future<String?> getStoredUserData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_prefUserKey);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Clear stored user profile data
+  Future<void> clearStoredUserData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_prefUserKey);
+    } catch (_) {}
+  }
+
+  /// Clear token and user state on logout
   Future<void> clearToken() async {
     await setToken(null);
+    await clearStoredUserData();
   }
 
   /// Update base URL (e.g. for switching between localhost, emulator, or production)
@@ -106,6 +152,17 @@ class ApiService {
         return jsonBody['data'];
       }
       return jsonBody;
+    }
+
+    // Global 401 Unauthorized handling matching JwtAuthEntrypoint
+    if (response.statusCode == 401) {
+      clearToken();
+      onSessionExpired?.call();
+      String unauthMsg = 'Session expired or authentication required. Please log in again.';
+      if (jsonBody is Map<String, dynamic> && jsonBody['message'] != null && jsonBody['message'].toString().isNotEmpty) {
+        unauthMsg = jsonBody['message'].toString();
+      }
+      throw ApiException(unauthMsg, statusCode: 401);
     }
 
     // Extract error message
@@ -323,10 +380,11 @@ class ApiService {
     return s;
   }
 
-  // Helper to normalize user role for backend enum Role (ADMIN, STAFF)
+  // Helper to normalize user role for backend enum Role (ADMIN, MANAGER, STAFF)
   String _normalizeRole(String role) {
     final upper = role.toUpperCase().replaceAll('ROLE_', '').trim();
     if (upper == 'ADMIN') return 'ADMIN';
+    if (upper == 'MANAGER' || upper == 'WAREHOUSE_MANAGER' || upper == 'WAREHOUSE MANAGER') return 'MANAGER';
     return 'STAFF';
   }
 
@@ -399,6 +457,7 @@ class ApiService {
     return [];
   }
 
+
   /// Get category by id: GET /categories/{id}
   Future<Map<String, dynamic>> getCategoryById(dynamic id) async {
     final data = await get('/categories/$id');
@@ -446,6 +505,7 @@ class ApiService {
     return [];
   }
 
+
   /// Get supplier by id: GET /suppliers/{id}
   Future<Map<String, dynamic>> getSupplierById(dynamic id) async {
     final data = await get('/suppliers/$id');
@@ -491,6 +551,75 @@ class ApiService {
   }
 
   // ==========================================
+  // CUSTOMER ENDPOINTS
+  // ==========================================
+
+  /// Get customers: GET /customers
+  Future<List<dynamic>> getCustomers({String? search, int page = 0, int size = 100}) async {
+    final data = await get('/customers', queryParams: {
+      if (search != null && search.isNotEmpty) 'search': search,
+      'page': page,
+      'size': size,
+      'sort': 'id,asc',
+    });
+    if (data is Map<String, dynamic> && data['content'] is List) {
+      return data['content'] as List<dynamic>;
+    }
+    return [];
+  }
+
+
+  /// Get customer by id: GET /customers/{id}
+  Future<Map<String, dynamic>> getCustomerById(dynamic id) async {
+    final data = await get('/customers/$id');
+    return data as Map<String, dynamic>;
+  }
+
+  /// Create customer: POST /customers
+  Future<Map<String, dynamic>> createCustomer({
+    required String name,
+    required String phone,
+    String? email,
+    String? address,
+  }) async {
+    final data = await post('/customers', body: {
+      'name': name,
+      'phone': phone,
+      if (email != null && email.isNotEmpty) 'email': email,
+      if (address != null && address.isNotEmpty) 'address': address,
+    });
+    return data as Map<String, dynamic>;
+  }
+
+  /// Update customer: PUT /customers/{id}
+  Future<Map<String, dynamic>> updateCustomer(
+    dynamic id, {
+    required String name,
+    required String phone,
+    String? email,
+    String? address,
+  }) async {
+    final data = await put('/customers/$id', body: {
+      'name': name,
+      'phone': phone,
+      if (email != null && email.isNotEmpty) 'email': email,
+      if (address != null && address.isNotEmpty) 'address': address,
+    });
+    return data as Map<String, dynamic>;
+  }
+
+  /// Update customer status: PUT /customers/{id}/status
+  Future<Map<String, dynamic>> updateCustomerStatus(dynamic id, bool active) async {
+    final data = await put('/customers/$id/status', body: {'active': active});
+    return data as Map<String, dynamic>;
+  }
+
+  /// Delete customer: DELETE /customers/{id}
+  Future<void> deleteCustomer(dynamic id) async {
+    await delete('/customers/$id');
+  }
+
+  // ==========================================
   // PRODUCT ENDPOINTS
   // ==========================================
 
@@ -520,6 +649,7 @@ class ApiService {
     }
     return [];
   }
+
 
   /// Get product by id: GET /products/{id}
   Future<Map<String, dynamic>> getProductById(dynamic id) async {
@@ -675,6 +805,12 @@ class ApiService {
     return [];
   }
 
+  /// Get stock transaction by id: GET /stock/history/{id}
+  Future<Map<String, dynamic>> getStockHistoryById(dynamic id) async {
+    final data = await get('/stock/history/$id');
+    return data as Map<String, dynamic>;
+  }
+
   // ==========================================
   // DASHBOARD ENDPOINTS
   // ==========================================
@@ -698,6 +834,7 @@ class ApiService {
     return [];
   }
 
+
   // ==========================================
   // USER MANAGEMENT ENDPOINTS (ADMIN ONLY)
   // ==========================================
@@ -715,6 +852,7 @@ class ApiService {
     }
     return [];
   }
+
 
   /// Create user: POST /users
   Future<Map<String, dynamic>> createUser({
@@ -761,6 +899,17 @@ class ApiService {
     return data as Map<String, dynamic>;
   }
 
+  /// Get user by id: GET /users/{id}
+  Future<Map<String, dynamic>> getUserById(dynamic id) async {
+    final data = await get('/users/$id');
+    return data as Map<String, dynamic>;
+  }
+
+  /// Delete user: DELETE /users/{id}
+  Future<void> deleteUser(dynamic id) async {
+    await delete('/users/$id');
+  }
+
   // ==========================================
   // REPORT ENDPOINTS
   // ==========================================
@@ -794,6 +943,7 @@ class ApiService {
     return [];
   }
 
+
   /// Stock transaction report: GET /reports/stock-transactions
   Future<List<dynamic>> getStockTransactionReport({
     dynamic productId,
@@ -823,4 +973,5 @@ class ApiService {
     }
     return [];
   }
+
 }

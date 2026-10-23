@@ -153,6 +153,14 @@ class MoreScreen extends StatelessWidget {
             onTap: () => context.push('/more/suppliers'),
           ),
           _MenuItem(
+            icon: Icons.people_outline_rounded,
+            label: 'Customers',
+            subtitle: 'Customer directory & contacts',
+            iconBgColor: const Color(0xFFDCFCE7),
+            iconColor: const Color(0xFF16A34A),
+            onTap: () => context.push('/more/customers'),
+          ),
+          _MenuItem(
             icon: Icons.history_rounded,
             label: 'Stock History',
             subtitle: 'Audit logs of in/out movements',

@@ -14,6 +14,7 @@ import '../../screens/history/history_screen.dart';
 import '../../screens/more/more_screen.dart';
 import '../../screens/more/categories_screen.dart';
 import '../../screens/more/suppliers_screen.dart';
+import '../../screens/more/customers_screen.dart';
 import '../../screens/more/reports_screen.dart';
 import '../../screens/more/profile_screen.dart';
 import '../../screens/more/users_screen.dart';
@@ -145,6 +146,11 @@ class AppRouter {
         path: '/more/suppliers',
         parentNavigatorKey: _rootKey,
         builder: (_, __) => const SuppliersScreen(),
+      ),
+      GoRoute(
+        path: '/more/customers',
+        parentNavigatorKey: _rootKey,
+        builder: (_, __) => const CustomersScreen(),
       ),
       GoRoute(
         path: '/more/users',

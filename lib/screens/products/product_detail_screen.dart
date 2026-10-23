@@ -69,11 +69,32 @@ class ProductDetailScreen extends StatelessWidget {
               ),
             ),
             actions: [
-              if (canManageProducts)
+              if (canManageProducts) ...[
+                IconButton(
+                  tooltip: product.status == 'Active' ? 'Deactivate Product' : 'Activate Product',
+                  icon: Icon(
+                    product.status == 'Active' ? Icons.toggle_on : Icons.toggle_off,
+                    size: 28,
+                    color: product.status == 'Active' ? AppColors.inStock : AppColors.grey500,
+                  ),
+                  onPressed: () async {
+                    final ok = await products.toggleProductStatus(productId);
+                    if (context.mounted && ok) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            '${product.name} is now ${product.status == "Active" ? "Inactive" : "Active"}',
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                ),
                 IconButton(
                   icon: const Icon(Icons.edit_outlined),
                   onPressed: () => context.push('/products/edit/$productId'),
                 ),
+              ],
             ],
           ),
 

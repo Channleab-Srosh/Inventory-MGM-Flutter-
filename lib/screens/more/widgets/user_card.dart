@@ -9,6 +9,7 @@ class UserCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onChangeRole;
   final VoidCallback onToggleStatus;
+  final VoidCallback? onDelete;
 
   const UserCard({
     super.key,
@@ -17,6 +18,7 @@ class UserCard extends StatelessWidget {
     required this.onEdit,
     required this.onChangeRole,
     required this.onToggleStatus,
+    this.onDelete,
   });
 
   @override
@@ -221,6 +223,14 @@ class UserCard extends StatelessWidget {
                           }
                         : onToggleStatus,
                   ),
+
+                  // Delete User
+                  if (!isCurrentLoggedIn && onDelete != null)
+                    TextButton.icon(
+                      icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.danger),
+                      label: const Text('Delete', style: TextStyle(color: AppColors.danger)),
+                      onPressed: onDelete,
+                    ),
                 ],
               ),
             ),

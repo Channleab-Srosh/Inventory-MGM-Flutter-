@@ -6,6 +6,9 @@ import '../../providers/product_provider.dart';
 import '../../providers/stock_provider.dart';
 import '../../providers/category_provider.dart';
 import '../../providers/supplier_provider.dart';
+import '../../providers/customer_provider.dart';
+import '../../data/api_service.dart';
+import '../../models/dashboard_summary.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -27,6 +30,8 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  DashboardSummary? _summary;
+
   @override
   void initState() {
     super.initState();
@@ -40,12 +45,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final stock = context.read<StockProvider>();
     final categories = context.read<CategoryProvider>();
     final suppliers = context.read<SupplierProvider>();
+    final customers = context.read<CustomerProvider>();
+
+    try {
+      final summaryJson = await ApiService().getDashboardSummary();
+      if (mounted) {
+        setState(() {
+          _summary = DashboardSummary.fromJson(summaryJson);
+        });
+      }
+    } catch (_) {}
 
     await Future.wait([
       products.fetchProducts(),
       stock.fetchMovements(),
       categories.fetchCategories(),
       suppliers.fetchSuppliers(),
+      customers.fetchCustomers(),
     ]);
   }
 
@@ -294,6 +310,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           DashboardSummaryGrid(
                             products: products,
                             stock: stock,
+                            summary: _summary,
                           ),
                           const SizedBox(height: 22),
 
@@ -353,7 +370,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     header,
                     const SizedBox(height: 18),
-                    DashboardSummaryGrid(products: products, stock: stock),
+                    DashboardSummaryGrid(
+                      products: products,
+                      stock: stock,
+                      summary: _summary,
+                    ),
                     const SizedBox(height: 18),
                     DashboardStockChart(
                       stockIn: stock.stockInLast7Days,
