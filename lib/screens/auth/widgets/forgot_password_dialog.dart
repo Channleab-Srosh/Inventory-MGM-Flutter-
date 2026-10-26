@@ -163,7 +163,7 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 460, maxHeight: 680),
+        constraints: const BoxConstraints(maxWidth: double.infinity , maxHeight: 680),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -181,7 +181,7 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
                     ),
                     child: const Icon(Icons.lock_reset, color: AppColors.primary, size: 24),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -256,7 +256,7 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
 
   Widget _buildStepIndicator() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(10),
@@ -291,11 +291,11 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
     }
 
     return Row(
-      mainAxisSize: MainAxisSize.min,
+      // mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
           isDone ? Icons.check_circle : icon,
-          size: 16,
+          size: 9,
           color: color,
         ),
         const SizedBox(width: 6),
