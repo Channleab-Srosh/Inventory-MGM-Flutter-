@@ -18,7 +18,7 @@ class StockScreen extends StatefulWidget {
 
 class _StockScreenState extends State<StockScreen> {
   late int _selectedTab;
-
+  
   @override
   void initState() {
     super.initState();

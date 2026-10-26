@@ -40,7 +40,8 @@ class _StockOutFormState extends State<StockOutForm> {
     if (auth.user?.canStockOut != true) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Permission denied: Staff accounts cannot perform stock out.'),
+          content: Text(
+              'Permission denied: Staff accounts cannot perform stock out.'),
           backgroundColor: AppColors.danger,
         ),
       );
@@ -128,11 +129,15 @@ class _StockOutFormState extends State<StockOutForm> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.lock_outline, size: 56, color: AppColors.chartOut),
+              const Icon(Icons.lock_outline,
+                  size: 56, color: AppColors.chartOut),
               const SizedBox(height: 16),
               Text(
                 'Stock Out Restricted',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               const Text(
@@ -193,7 +198,6 @@ class _StockOutFormState extends State<StockOutForm> {
                   const SizedBox(width: 8),
                   QuantityStepper(
                     value: _quantity,
-                    max: availableQty > 0 ? availableQty : 1,
                     onChanged: (v) => setState(() => _quantity = v),
                   ),
                 ],
@@ -243,10 +247,12 @@ class _StockOutFormState extends State<StockOutForm> {
                         ),
                         ...customers.map((c) => DropdownMenuItem<Customer?>(
                               value: c,
-                              child: Text('${c.name} (${c.phone})', overflow: TextOverflow.ellipsis),
+                              child: Text('${c.name} (${c.phone})',
+                                  overflow: TextOverflow.ellipsis),
                             )),
                       ],
-                      onChanged: (val) => setState(() => _selectedCustomer = val),
+                      onChanged: (val) =>
+                          setState(() => _selectedCustomer = val),
                     ),
                   );
                 },
@@ -285,7 +291,6 @@ class _StockOutFormState extends State<StockOutForm> {
           ),
         ),
         const SizedBox(height: 24),
-
         const SectionHeader(title: 'Recent Stock Out'),
         const SizedBox(height: 8),
         ...stock.recentTransactions

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import 'package:flutter/services.dart';
 
 /// A stats summary card matching the Bento aesthetic with generous 24px radius
 class SummaryCard extends StatelessWidget {
@@ -149,7 +150,9 @@ class StatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final fg = textColor ?? color ?? AppColors.text;
     final bg = backgroundColor ??
-        (color != null ? color!.withValues(alpha: 0.12) : AppColors.primaryActive);
+        (color != null
+            ? color!.withValues(alpha: 0.12)
+            : AppColors.primaryActive);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -225,12 +228,14 @@ class _SearchFieldState extends State<SearchField> {
             fontSize: 13,
             color: AppColors.secondaryText,
           ),
-          prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.secondaryText),
+          prefixIcon: const Icon(Icons.search,
+              size: 20, color: AppColors.secondaryText),
           suffixIcon: ValueListenableBuilder(
             valueListenable: _controller,
             builder: (_, value, __) => value.text.isNotEmpty
                 ? IconButton(
-                    icon: const Icon(Icons.clear, size: 18, color: AppColors.secondaryText),
+                    icon: const Icon(Icons.clear,
+                        size: 18, color: AppColors.secondaryText),
                     onPressed: () {
                       _controller.clear();
                       widget.onChanged('');
@@ -240,7 +245,8 @@ class _SearchFieldState extends State<SearchField> {
           ),
           filled: true,
           fillColor: Colors.transparent,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
@@ -431,82 +437,131 @@ class SectionHeader extends StatelessWidget {
 }
 
 /// +/- quantity stepper with pill/rounded aesthetic
-class QuantityStepper extends StatelessWidget {
+class QuantityStepper extends StatefulWidget {
   final int value;
+  final ValueChanged<int> onChanged;
   final int min;
   final int max;
-  final ValueChanged<int> onChanged;
 
   const QuantityStepper({
     super.key,
     required this.value,
-    this.min = 1,
-    this.max = 9999,
     required this.onChanged,
+    this.min = 1,
+    this.max = 999999,
   });
+
+  @override
+  State<QuantityStepper> createState() => _QuantityStepperState();
+}
+
+class _QuantityStepperState extends State<QuantityStepper> {
+  late TextEditingController _controller;
+  late FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.value.toString());
+    _focusNode = FocusNode()
+      ..addListener(() {
+        // When user taps away, restore minimum value if left empty or invalid
+        if (!_focusNode.hasFocus) {
+          final parsed = int.tryParse(_controller.text);
+          if (parsed == null || parsed < widget.min) {
+            _controller.text = widget.min.toString();
+            widget.onChanged(widget.min);
+          }
+        }
+      });
+  }
+
+  @override
+  void didUpdateWidget(covariant QuantityStepper oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Sync text field when +/- buttons are pressed or form resets _quantity to 1
+    if (oldWidget.value != widget.value &&
+        _controller.text != widget.value.toString()) {
+      _controller.value = TextEditingValue(
+        text: widget.value.toString(),
+        selection: TextSelection.collapsed(
+          offset: widget.value.toString().length,
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _updateValue(int newValue) {
+    final clamped = newValue.clamp(widget.min, widget.max);
+    _controller.text = clamped.toString();
+    _controller.selection = TextSelection.collapsed(
+      offset: _controller.text.length,
+    );
+    widget.onChanged(clamped);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppTheme.pillRadius),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _StepButton(
-            icon: Icons.remove,
-            onTap: value > min ? () => onChanged(value - 1) : null,
+          // Decrease button (-)
+          IconButton(
+            icon: const Icon(Icons.remove, size: 18),
+            visualDensity: VisualDensity.compact,
+            onPressed: widget.value > widget.min
+                ? () => _updateValue(widget.value - 1)
+                : null,
           ),
-          Container(
-            width: 52,
-            alignment: Alignment.center,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                '$value',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.text,
-                ),
+
+          // Direct numeric input field
+          SizedBox(
+            width: 64,
+            child: TextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+              decoration: const InputDecoration(
+                isDense: true,
+                contentPadding:
+                    EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                border: InputBorder.none,
               ),
+              onChanged: (val) {
+                if (val.isEmpty) return; // Allow clearing while typing
+                final parsed = int.tryParse(val);
+                if (parsed != null) {
+                  final clamped = parsed.clamp(widget.min, widget.max);
+                  widget.onChanged(clamped);
+                }
+              },
             ),
           ),
-          _StepButton(
-            icon: Icons.add,
-            onTap: value < max ? () => onChanged(value + 1) : null,
+
+          // Increase button (+)
+          IconButton(
+            icon: const Icon(Icons.add, size: 18),
+            visualDensity: VisualDensity.compact,
+            onPressed: widget.value < widget.max
+                ? () => _updateValue(widget.value + 1)
+                : null,
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _StepButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback? onTap;
-  const _StepButton({required this.icon, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTheme.pillRadius),
-        child: SizedBox(
-          width: 36,
-          height: 36,
-          child: Icon(
-            icon,
-            size: 18,
-            color: onTap != null ? AppColors.text : AppColors.secondaryText.withValues(alpha: 0.4),
-          ),
-        ),
       ),
     );
   }

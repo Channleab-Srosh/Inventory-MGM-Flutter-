@@ -151,7 +151,8 @@ class _StockInFormState extends State<StockInForm> {
                       ),
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 4),
-                        child: Icon(Icons.add, size: 16, color: AppColors.success),
+                        child:
+                            Icon(Icons.add, size: 16, color: AppColors.success),
                       ),
                       Expanded(
                         child: Column(
@@ -178,7 +179,8 @@ class _StockInFormState extends State<StockInForm> {
                       ),
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 4),
-                        child: Icon(Icons.arrow_forward, size: 16, color: AppColors.secondaryText),
+                        child: Icon(Icons.arrow_forward,
+                            size: 16, color: AppColors.secondaryText),
                       ),
                       Expanded(
                         child: Column(
@@ -217,8 +219,7 @@ class _StockInFormState extends State<StockInForm> {
                     const InputDecoration(labelText: 'Supplier (optional)'),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('None')),
-                  ...suppliers.map((s) =>
-                      DropdownMenuItem(
+                  ...suppliers.map((s) => DropdownMenuItem(
                         value: s.id,
                         child: Text(s.name, overflow: TextOverflow.ellipsis),
                       )),
@@ -246,17 +247,6 @@ class _StockInFormState extends State<StockInForm> {
                     onChanged: (v) => setState(() => _quantity = v),
                   ),
                 ],
-              ),
-              const SizedBox(height: 12),
-
-              // Reference Number
-              TextFormField(
-                controller: _refCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Reference Number (optional)',
-                  hintText: 'e.g. PO-2024-001',
-                  prefixIcon: Icon(Icons.tag, size: 20),
-                ),
               ),
               const SizedBox(height: 12),
 
