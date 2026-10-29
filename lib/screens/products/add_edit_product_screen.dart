@@ -6,6 +6,9 @@ import '../../providers/category_provider.dart';
 import '../../providers/supplier_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/product.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import '../../core/widgets/product_image.dart';
 
 /// Full-screen Add/Edit Product form
 class AddEditProductScreen extends StatefulWidget {
@@ -75,6 +78,44 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     super.dispose();
   }
 
+  File? _pickedImage;
+  String? _existingImage; // in initState: _existingImage = product?.imageUrl;
+
+  Future<void> _pickImage(ImageSource source) async {
+    final x = await ImagePicker().pickImage(
+      source: source,
+      maxWidth: 1280,
+      imageQuality: 80,
+    );
+    if (x != null) setState(() => _pickedImage = File(x.path));
+  }
+
+  void _showImageSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Wrap(children: [
+          ListTile(
+            leading: const Icon(Icons.photo_library_outlined),
+            title: const Text('Choose from gallery'),
+            onTap: () {
+              Navigator.pop(context);
+              _pickImage(ImageSource.gallery);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.camera_alt_outlined),
+            title: const Text('Take a photo'),
+            onTap: () {
+              Navigator.pop(context);
+              _pickImage(ImageSource.camera);
+            },
+          ),
+        ]),
+      ),
+    );
+  }
+
   Future<void> _save() async {
     final auth = context.read<AuthProvider>();
     if (auth.user?.canManageProducts != true) {
@@ -104,6 +145,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     setState(() => _saving = true);
 
     final effectiveUnit = _unit;
+    String? productId = widget.productId;
 
     bool success = false;
     if (_isEditing) {
@@ -119,7 +161,8 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
           categoryId: _selectedCategoryId,
           supplierId: _selectedSupplierId,
           status: _status,
-          description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+          description:
+              _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
         ));
       }
     } else {
@@ -134,9 +177,15 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
         categoryId: _selectedCategoryId!,
         supplierId: _selectedSupplierId!,
         status: _status,
-        description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+        description:
+            _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
       ));
       success = created != null;
+      productId = created?.id;
+    }
+
+    if (success && _pickedImage != null && productId != null) {
+      await products.setProductImage(productId, _pickedImage!);
     }
 
     if (mounted) {
@@ -158,16 +207,19 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     final auth = context.watch<AuthProvider>();
     if (auth.user?.canManageProducts != true) {
       return Scaffold(
-        appBar: AppBar(title: Text(_isEditing ? 'Edit Product' : 'Add Product')),
+        appBar:
+            AppBar(title: Text(_isEditing ? 'Edit Product' : 'Add Product')),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.lock_outline, size: 64, color: AppColors.danger),
+                const Icon(Icons.lock_outline,
+                    size: 64, color: AppColors.danger),
                 const SizedBox(height: 16),
-                Text('Access Restricted', style: Theme.of(context).textTheme.titleLarge),
+                Text('Access Restricted',
+                    style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 8),
                 const Text(
                   'Staff accounts have view-only access to products. Adding and editing products is restricted to administrators and warehouse managers.',
@@ -202,266 +254,294 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-            // Image picker placeholder
-            Center(
-              child: GestureDetector(
-                onTap: () {},
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.3),
-                        style: BorderStyle.solid),
-                  ),
-                  child: const Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.camera_alt_outlined,
-                          color: AppColors.primary, size: 32),
-                      SizedBox(height: 4),
-                      Text('Add Photo',
-                          style: TextStyle(
-                              color: AppColors.primary, fontSize: 11)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            _sectionLabel(theme, 'Basic Information'),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _nameCtrl,
-              decoration: const InputDecoration(labelText: 'Product Name *'),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Name is required' : null,
-            ),
-            const SizedBox(height: 12),
-
-            // SKU with scan button
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _skuCtrl,
-                    decoration: const InputDecoration(labelText: 'SKU *'),
-                    validator: (v) =>
-                        v == null || v.trim().isEmpty ? 'SKU is required' : null,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                InkWell(
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('Barcode scanner coming soon')));
-                  },
-                  child: Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
+                // Image picker placeholder
+                Center(
+                  child: GestureDetector(
+                    onTap: () {},
+                    child: Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            style: BorderStyle.solid),
+                      ),
+                      child: GestureDetector(
+                        onTap: _showImageSourceSheet,
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          clipBehavior: Clip.antiAlias,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                                color:
+                                    AppColors.primary.withValues(alpha: 0.3)),
+                          ),
+                          child: _pickedImage != null
+                              ? Image.file(_pickedImage!, fit: BoxFit.cover)
+                              : ProductImage(
+                                  path: _existingImage,
+                                  fallback: const Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.camera_alt_outlined,
+                                          color: AppColors.primary, size: 32),
+                                      SizedBox(height: 4),
+                                      Text('Add Photo',
+                                          style: TextStyle(
+                                              color: AppColors.primary,
+                                              fontSize: 11)),
+                                    ],
+                                  ),
+                                ),
+                        ),
+                      ),
                     ),
-                    child: const Icon(Icons.qr_code_scanner,
-                        color: AppColors.primary),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
+                const SizedBox(height: 24),
 
-            // Category dropdown
-            DropdownButtonFormField<String>(
-              isExpanded: true,
-              initialValue: categories.any((c) => c.id == _selectedCategoryId)
-                  ? _selectedCategoryId
-                  : null,
-              decoration: const InputDecoration(labelText: 'Category *'),
-              items: categories
-                  .map((c) => DropdownMenuItem(
-                        value: c.id,
-                        child: Text(
-                          c.name,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ))
-                  .toList(),
-              onChanged: (v) => setState(() => _selectedCategoryId = v),
-              validator: (v) => v == null ? 'Category is required' : null,
-            ),
-            const SizedBox(height: 12),
+                _sectionLabel(theme, 'Basic Information'),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _nameCtrl,
+                  decoration:
+                      const InputDecoration(labelText: 'Product Name *'),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Name is required' : null,
+                ),
+                const SizedBox(height: 12),
 
-            // Supplier dropdown
-            DropdownButtonFormField<String>(
-              isExpanded: true,
-              initialValue: suppliers.any((s) => s.id == _selectedSupplierId)
-                  ? _selectedSupplierId
-                  : null,
-              decoration: const InputDecoration(labelText: 'Supplier *'),
-              items: suppliers
-                  .map((s) => DropdownMenuItem(
-                        value: s.id,
-                        child: Text(
-                          s.name,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ))
-                  .toList(),
-              onChanged: (v) => setState(() => _selectedSupplierId = v),
-              validator: (v) => v == null ? 'Supplier is required' : null,
-            ),
-            const SizedBox(height: 12),
-
-            // Status dropdown
-            DropdownButtonFormField<String>(
-              isExpanded: true,
-              initialValue: _status,
-              decoration: const InputDecoration(labelText: 'Status *'),
-              items: const [
-                DropdownMenuItem(value: 'Active', child: Text('Active')),
-                DropdownMenuItem(value: 'Inactive', child: Text('Inactive')),
-              ],
-              onChanged: (v) {
-                if (v != null) setState(() => _status = v);
-              },
-            ),
-            const SizedBox(height: 20),
-
-            _sectionLabel(theme, 'Pricing & Stock'),
-            const SizedBox(height: 8),
-
-            // Price
-            TextFormField(
-              controller: _priceCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'Price *',
-                prefixText: '\$ ',
-              ),
-              validator: (v) {
-                if (v == null || v.isEmpty) return 'Price is required';
-                final n = double.tryParse(v);
-                if (n == null || n < 0) return 'Enter a valid price';
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-
-            // Unit of Measure selector
-            DropdownButtonFormField<String>(
-              isExpanded: true,
-              initialValue: _unit,
-              decoration: const InputDecoration(
-                labelText: 'Unit of Measure *',
-                prefixIcon: Icon(Icons.straighten_outlined, size: 20),
-              ),
-              items: Product.commonUnits
-                  .map((u) => DropdownMenuItem(
-                        value: u,
-                        child: Text(
-                          '${u.toUpperCase()} (${_unitDescription(u)})',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ))
-                  .toList(),
-              onChanged: (v) {
-                if (v != null) {
-                  setState(() => _unit = v);
-                }
-              },
-            ),
-            const SizedBox(height: 12),
-
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final isNarrow = constraints.maxWidth < 280;
-                final qtyField = TextFormField(
-                  controller: _qtyCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Initial Qty *',
-                    suffixText: _unit,
-                  ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Required';
-                    final n = int.tryParse(v);
-                    if (n == null) return 'Invalid number';
-                    if (n < 0) return 'Stock quantity cannot be negative';
-                    return null;
-                  },
-                );
-                final minStockField = TextFormField(
-                  controller: _minStockCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Min Stock *',
-                    suffixText: _unit,
-                  ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Required';
-                    final n = int.tryParse(v);
-                    if (n == null) return 'Invalid number';
-                    if (n < 0) return 'Min stock cannot be negative';
-                    return null;
-                  },
-                );
-
-                if (isNarrow) {
-                  return Column(
-                    children: [
-                      qtyField,
-                      const SizedBox(height: 12),
-                      minStockField,
-                    ],
-                  );
-                }
-
-                return Row(
+                // SKU with scan button
+                Row(
                   children: [
-                    Expanded(child: qtyField),
-                    const SizedBox(width: 12),
-                    Expanded(child: minStockField),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _skuCtrl,
+                        decoration: const InputDecoration(labelText: 'SKU *'),
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? 'SKU is required'
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Barcode scanner coming soon')));
+                      },
+                      child: Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.qr_code_scanner,
+                            color: AppColors.primary),
+                      ),
+                    ),
                   ],
-                );
-              },
-            ),
-            const SizedBox(height: 20),
+                ),
+                const SizedBox(height: 12),
 
-            _sectionLabel(theme, 'Description'),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _descCtrl,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Description (optional)',
-                alignLabelWithHint: true,
-              ),
-            ),
-            const SizedBox(height: 32),
+                // Category dropdown
+                DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  initialValue:
+                      categories.any((c) => c.id == _selectedCategoryId)
+                          ? _selectedCategoryId
+                          : null,
+                  decoration: const InputDecoration(labelText: 'Category *'),
+                  items: categories
+                      .map((c) => DropdownMenuItem(
+                            value: c.id,
+                            child: Text(
+                              c.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedCategoryId = v),
+                  validator: (v) => v == null ? 'Category is required' : null,
+                ),
+                const SizedBox(height: 12),
 
-            // Save button
-            ElevatedButton(
-              onPressed: _saving ? null : _save,
-              child: _saving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
-                    )
-                  : Text(_isEditing ? 'Update Product' : 'Add Product'),
+                // Supplier dropdown
+                DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  initialValue:
+                      suppliers.any((s) => s.id == _selectedSupplierId)
+                          ? _selectedSupplierId
+                          : null,
+                  decoration: const InputDecoration(labelText: 'Supplier *'),
+                  items: suppliers
+                      .map((s) => DropdownMenuItem(
+                            value: s.id,
+                            child: Text(
+                              s.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedSupplierId = v),
+                  validator: (v) => v == null ? 'Supplier is required' : null,
+                ),
+                const SizedBox(height: 12),
+
+                // Status dropdown
+                DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  initialValue: _status,
+                  decoration: const InputDecoration(labelText: 'Status *'),
+                  items: const [
+                    DropdownMenuItem(value: 'Active', child: Text('Active')),
+                    DropdownMenuItem(
+                        value: 'Inactive', child: Text('Inactive')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setState(() => _status = v);
+                  },
+                ),
+                const SizedBox(height: 20),
+
+                _sectionLabel(theme, 'Pricing & Stock'),
+                const SizedBox(height: 8),
+
+                // Price
+                TextFormField(
+                  controller: _priceCtrl,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Price *',
+                    prefixText: '\$ ',
+                  ),
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Price is required';
+                    final n = double.tryParse(v);
+                    if (n == null || n < 0) return 'Enter a valid price';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                // Unit of Measure selector
+                DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  initialValue: _unit,
+                  decoration: const InputDecoration(
+                    labelText: 'Unit of Measure *',
+                    prefixIcon: Icon(Icons.straighten_outlined, size: 20),
+                  ),
+                  items: Product.commonUnits
+                      .map((u) => DropdownMenuItem(
+                            value: u,
+                            child: Text(
+                              '${u.toUpperCase()} (${_unitDescription(u)})',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) {
+                      setState(() => _unit = v);
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isNarrow = constraints.maxWidth < 280;
+                    final qtyField = TextFormField(
+                      controller: _qtyCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Initial Qty *',
+                        suffixText: _unit,
+                      ),
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return 'Required';
+                        final n = int.tryParse(v);
+                        if (n == null) return 'Invalid number';
+                        if (n < 0) return 'Stock quantity cannot be negative';
+                        return null;
+                      },
+                    );
+                    final minStockField = TextFormField(
+                      controller: _minStockCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Min Stock *',
+                        suffixText: _unit,
+                      ),
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return 'Required';
+                        final n = int.tryParse(v);
+                        if (n == null) return 'Invalid number';
+                        if (n < 0) return 'Min stock cannot be negative';
+                        return null;
+                      },
+                    );
+
+                    if (isNarrow) {
+                      return Column(
+                        children: [
+                          qtyField,
+                          const SizedBox(height: 12),
+                          minStockField,
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      children: [
+                        Expanded(child: qtyField),
+                        const SizedBox(width: 12),
+                        Expanded(child: minStockField),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
+
+                _sectionLabel(theme, 'Description'),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _descCtrl,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Description (optional)',
+                    alignLabelWithHint: true,
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Save button
+                ElevatedButton(
+                  onPressed: _saving ? null : _save,
+                  child: _saving
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(_isEditing ? 'Update Product' : 'Add Product'),
+                ),
+                const SizedBox(height: 16),
+              ],
             ),
-            const SizedBox(height: 16),
-          ],
+          ),
         ),
       ),
-    ),
-  ),
-);
+    );
   }
 
   Widget _sectionLabel(ThemeData theme, String label) {

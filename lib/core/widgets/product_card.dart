@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:inventory_management/core/widgets/product_image.dart';
 import '../../models/product.dart';
 import '../../core/theme/app_theme.dart';
 
@@ -59,13 +60,10 @@ class ProductCard extends StatelessWidget {
                       ),
                     ),
                     clipBehavior: Clip.antiAlias,
-                    child: product.imageUrl != null && product.imageUrl!.isNotEmpty
-                        ? Image.network(
-                            product.imageUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _buildFallbackThumbnail(),
-                          )
-                        : _buildFallbackThumbnail(),
+                    child: ProductImage(
+                      path: product.imageUrl,
+                      fallback: _buildFallbackThumbnail(),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 14),

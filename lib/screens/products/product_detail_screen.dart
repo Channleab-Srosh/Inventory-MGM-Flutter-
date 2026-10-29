@@ -11,6 +11,7 @@ import '../../core/utils/app_utils.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../models/product.dart';
 import '../../models/stock_movement.dart';
+import '../../core/widgets/product_image.dart';
 
 /// Product detail page: image, info, stock history
 class ProductDetailScreen extends StatelessWidget {
@@ -49,147 +50,186 @@ class ProductDetailScreen extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 800),
           child: CustomScrollView(
             slivers: [
-          // Hero image app bar
-          SliverAppBar(
-            expandedHeight: 220,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Hero(
-                tag: 'product-$productId',
-                child: Container(
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                  child: const Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.inventory_2_outlined,
-                          size: 80, color: AppColors.primary),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            actions: [
-              if (canManageProducts) ...[
-                IconButton(
-                  tooltip: product.status == 'Active' ? 'Deactivate Product' : 'Activate Product',
-                  icon: Icon(
-                    product.status == 'Active' ? Icons.toggle_on : Icons.toggle_off,
-                    size: 28,
-                    color: product.status == 'Active' ? AppColors.inStock : AppColors.grey500,
-                  ),
-                  onPressed: () async {
-                    final ok = await products.toggleProductStatus(productId);
-                    if (context.mounted && ok) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            '${product.name} is now ${product.status == "Active" ? "Inactive" : "Active"}',
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined),
-                  onPressed: () => context.push('/products/edit/$productId'),
-                ),
-              ],
-            ],
-          ),
-
-          SliverPadding(
-            padding: const EdgeInsets.all(16),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                // Name + status
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(product.name,
-                          style: theme.textTheme.headlineMedium),
+              // Hero image app bar
+              SliverAppBar(
+                expandedHeight: 220,
+                pinned: true,
+                leading: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, size: 20),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.primary,
+                      shape: const CircleBorder(),
+                      padding: EdgeInsets.zero,
                     ),
-                    _statusChip(product.stockStatus),
-                  ],
+                    onPressed: () => Navigator.of(context).maybePop(),
+                  ),
                 ),
-                const SizedBox(height: 4),
-                Text('SKU: ${product.sku}',
-                    style: theme.textTheme.bodyMedium),
-                const SizedBox(height: 16),
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Hero(
+                    tag: 'product-$productId',
+                    child: Container(
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                      width: double.infinity,
+                      child: ProductImage(
+                        path: product.imageUrl,
+                        fit: BoxFit.cover,
+                        fallback: const Center(
+                          child: Icon(Icons.inventory_2_outlined,
+                              size: 80, color: AppColors.primary),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                actions: [
+                  if (canManageProducts) ...[
+                    IconButton(
+                      tooltip: product.status == 'Active'
+                          ? 'Deactivate Product'
+                          : 'Activate Product',
+                      icon: Icon(
+                        product.status == 'Active'
+                            ? Icons.toggle_on
+                            : Icons.toggle_off,
+                        size: 28,
+                        color: product.status == 'Active'
+                            ? AppColors.inStock
+                            : AppColors.grey500,
+                      ),
+                      onPressed: () async {
+                        final ok =
+                            await products.toggleProductStatus(productId);
+                        if (context.mounted && ok) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                '${product.name} is now ${product.status == "Active" ? "Inactive" : "Active"}',
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: IconButton(
+                        icon: const Icon(Icons.edit_outlined, size: 20),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: AppColors.primary,
+                          shape: const CircleBorder(),
+                          fixedSize: const Size(40, 40), // smaller circle
+                        ),
+                        onPressed: () =>
+                            context.push('/products/edit/$productId'),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
 
-                // Info grid
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
+              SliverPadding(
+                padding: const EdgeInsets.all(16),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    // Name + status
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _InfoRow('Product ID', product.id),
-                        const Divider(height: 20),
-                        if (canViewCategories) ...[
-                          _InfoRow('Category', category?.name ?? product.categoryName ?? '-'),
-                          const Divider(height: 20),
-                        ],
-                        _InfoRow('Supplier', supplier?.name ?? product.supplierName ?? '-'),
-                        const Divider(height: 20),
-                        _InfoRow('Price',
-                            AppUtils.formatCurrency(product.price)),
-                        const Divider(height: 20),
-                        _InfoRow('Unit of Measure', product.unit),
-                        const Divider(height: 20),
-                        _InfoRow('Current Qty',
-                            '${AppUtils.formatNumber(product.quantity)} ${product.unit}'),
-                        const Divider(height: 20),
-                        _InfoRow('Min Stock', '${product.minStockLevel} ${product.unit}'),
-                        const Divider(height: 20),
-                        _InfoRow('Stock Value',
-                            AppUtils.formatCurrency(
-                                product.price * product.quantity)),
-                        const Divider(height: 20),
-                        _InfoRow('Status', product.status),
-                        const Divider(height: 20),
-                        _InfoRow('Created Date',
-                            AppUtils.formatDate(product.createdAt)),
-                        const Divider(height: 20),
-                        _InfoRow('Updated Date',
-                            AppUtils.formatDate(product.updatedAt)),
+                        Expanded(
+                          child: Text(product.name,
+                              style: theme.textTheme.headlineMedium),
+                        ),
+                        _statusChip(product.stockStatus),
                       ],
                     ),
-                  ),
+                    const SizedBox(height: 4),
+                    Text('SKU: ${product.sku}',
+                        style: theme.textTheme.bodyMedium),
+                    const SizedBox(height: 16),
+
+                    // Info grid
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            _InfoRow('Product ID', product.id),
+                            const Divider(height: 20),
+                            if (canViewCategories) ...[
+                              _InfoRow(
+                                  'Category',
+                                  category?.name ??
+                                      product.categoryName ??
+                                      '-'),
+                              const Divider(height: 20),
+                            ],
+                            _InfoRow('Supplier',
+                                supplier?.name ?? product.supplierName ?? '-'),
+                            const Divider(height: 20),
+                            _InfoRow('Price',
+                                AppUtils.formatCurrency(product.price)),
+                            const Divider(height: 20),
+                            _InfoRow('Unit of Measure', product.unit),
+                            const Divider(height: 20),
+                            _InfoRow('Current Qty',
+                                '${AppUtils.formatNumber(product.quantity)} ${product.unit}'),
+                            const Divider(height: 20),
+                            _InfoRow('Min Stock',
+                                '${product.minStockLevel} ${product.unit}'),
+                            const Divider(height: 20),
+                            _InfoRow(
+                                'Stock Value',
+                                AppUtils.formatCurrency(
+                                    product.price * product.quantity)),
+                            const Divider(height: 20),
+                            _InfoRow('Status', product.status),
+                            const Divider(height: 20),
+                            _InfoRow('Created Date',
+                                AppUtils.formatDate(product.createdAt)),
+                            const Divider(height: 20),
+                            _InfoRow('Updated Date',
+                                AppUtils.formatDate(product.updatedAt)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Description
+                    if (product.description != null) ...[
+                      const SectionHeader(title: 'Description'),
+                      const SizedBox(height: 8),
+                      Text(product.description!,
+                          style: theme.textTheme.bodyLarge),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Stock history
+                    const SectionHeader(title: 'Stock History'),
+                    const SizedBox(height: 8),
+                    if (movements.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Center(
+                            child: Text('No movements yet',
+                                style: TextStyle(color: AppColors.grey500))),
+                      )
+                    else
+                      ...movements.map((m) => _MovementTile(movement: m)),
+
+                    const SizedBox(height: 80),
+                  ]),
                 ),
-                const SizedBox(height: 16),
-
-                // Description
-                if (product.description != null) ...[
-                  const SectionHeader(title: 'Description'),
-                  const SizedBox(height: 8),
-                  Text(product.description!,
-                      style: theme.textTheme.bodyLarge),
-                  const SizedBox(height: 16),
-                ],
-
-                // Stock history
-                const SectionHeader(title: 'Stock History'),
-                const SizedBox(height: 8),
-                if (movements.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Center(
-                        child: Text('No movements yet',
-                            style: TextStyle(color: AppColors.grey500))),
-                  )
-                else
-                  ...movements.map((m) => _MovementTile(movement: m)),
-
-                const SizedBox(height: 80),
-              ]),
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
-    ),
-  ),
-);
+    );
   }
 
   Widget _statusChip(StockStatus status) {
@@ -249,8 +289,7 @@ class _MovementTile extends StatelessWidget {
           color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(
-            isIn ? Icons.arrow_downward : Icons.arrow_upward,
+        child: Icon(isIn ? Icons.arrow_downward : Icons.arrow_upward,
             color: color, size: 18),
       ),
       title: Text(
