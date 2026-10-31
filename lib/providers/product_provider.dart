@@ -5,9 +5,6 @@ import '../models/product.dart';
 import '../models/user_profile.dart';
 import '../models/inventory_report.dart';
 import '../data/api_service.dart';
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../data/local_image_service.dart';
 
 /// Manages product list with real backend fetching, search/filter, and CRUD support
 class ProductProvider extends ChangeNotifier {
@@ -26,8 +23,6 @@ class ProductProvider extends ChangeNotifier {
   bool _hasLoadedLowStock = false;
   bool _isLoadingLowStock = false;
   String? _lowStockError;
-  Map<String, String> _localImages = {};
-  static const _imagesKey = 'local_product_images';
 
   // Server dashboard summary metrics (optional cache)
   Map<String, dynamic>? _serverSummary;
@@ -40,42 +35,36 @@ class ProductProvider extends ChangeNotifier {
   int _totalElements = 0;
 
   ProductProvider({UserProfile? currentUser}) : _currentUser = currentUser {
-    _loadLocalImages().then((_) {
-      if (_api.hasToken) {
-        fetchProducts();
-        loadLowStock();
-      }
-    });
-  }
-
-  Future<void> _loadLocalImages() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_imagesKey);
-    if (raw != null) {
-      _localImages = Map<String, String>.from(jsonDecode(raw));
+    if (_api.hasToken) {
+      fetchProducts();
+      loadLowStock();
     }
   }
 
-  void _applyLocalImages(Iterable<Product> list) {
-    for (final p in list) {
-      if ((p.imageUrl == null || p.imageUrl!.isEmpty) &&
-          _localImages.containsKey(p.id)) {
-        p.imageUrl = _localImages[p.id];
-      }
+  /// Upload a product image to the backend: POST /products/{id}/image
+  /// On success the product in the list gets the new server `imageUrl`.
+  Future<bool> uploadImage(String productId, File file) async {
+    try {
+      final data = await _api.uploadProductImage(productId, file);
+      _replaceImageUrl(productId, Product.fromJson(data).imageUrl);
+      return true;
+    } catch (e) {
+      _error = (e is ApiException)
+          ? e.message
+          : e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
     }
   }
 
-  /// Save a picked image for a product
-  Future<void> setProductImage(String productId, File picked) async {
-    final newPath = await LocalImageService.saveProductImage(picked);
-    await LocalImageService.delete(_localImages[productId]); // remove old file
-    _localImages[productId] = newPath;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_imagesKey, jsonEncode(_localImages));
-
+  void _replaceImageUrl(String productId, String? url) {
     final idx = _products.indexWhere((p) => p.id == productId);
     if (idx >= 0) {
-      _products[idx] = _products[idx].copyWith(imageUrl: newPath);
+      _products[idx].imageUrl = url; // `imageUrl` is mutable on Product
+    }
+    final li = _lowStockProducts.indexWhere((p) => p.id == productId);
+    if (li >= 0) {
+      _lowStockProducts[li].imageUrl = url;
     }
     notifyListeners();
   }
@@ -209,7 +198,6 @@ class ProductProvider extends ChangeNotifier {
       );
 
       _products = paged.items.map(Product.fromJson).toList();
-      _applyLocalImages(_products);
       _currentPage = paged.page;
       _hasMore = !paged.last;
       _totalElements = paged.totalElements;
@@ -247,7 +235,6 @@ class ProductProvider extends ChangeNotifier {
       );
 
       final newItems = paged.items.map(Product.fromJson).toList();
-      _applyLocalImages(newItems);
       _products.addAll(newItems);
       _currentPage = paged.page;
       _hasMore = !paged.last;
@@ -430,12 +417,12 @@ class ProductProvider extends ChangeNotifier {
         unitPrice: updated.price,
         minimumStock: updated.minStockLevel,
         active: updated.status.toLowerCase() == 'active',
+        imageUrl: updated.imageUrl, // keep the image: the API clears it if omitted
       );
 
       final saved = Product.fromJson(data);
       // Preserve current quantity if backend didn't return updated quantity
       saved.quantity = updated.quantity;
-      saved.imageUrl = (saved.imageUrl?.isNotEmpty ?? false) ? saved.imageUrl : _localImages[updated.id];
 
       final idx = _products.indexWhere((p) => p.id == updated.id);
       if (idx >= 0) {

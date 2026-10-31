@@ -65,6 +65,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     _selectedCategoryId = product?.categoryId;
     _selectedSupplierId = product?.supplierId;
     _status = product?.status ?? 'Active';
+    _existingImage = product?.imageUrl;
   }
 
   @override
@@ -79,7 +80,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
   }
 
   File? _pickedImage;
-  String? _existingImage; // in initState: _existingImage = product?.imageUrl;
+  String? _existingImage; // server image URL (set in initState)
 
   Future<void> _pickImage(ImageSource source) async {
     final x = await ImagePicker().pickImage(
@@ -184,15 +185,22 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
       productId = created?.id;
     }
 
-    if (success && _pickedImage != null && productId != null) {
-      await products.setProductImage(productId, _pickedImage!);
+    // The create API has no image, so the photo is only handled when editing:
+    // product is saved first (PUT), then the image is uploaded (POST /products/{id}/image).
+    bool imageFailed = false;
+    if (success && _isEditing && productId != null && _pickedImage != null) {
+      imageFailed = !await products.uploadImage(productId, _pickedImage!);
     }
 
     if (mounted) {
       setState(() => _saving = false);
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(_isEditing ? 'Product updated!' : 'Product added!')));
+          content: Text(imageFailed
+              ? 'Product saved, but the image failed: ${products.error ?? 'upload error'}'
+              : (_isEditing ? 'Product updated!' : 'Product added!')),
+          backgroundColor: imageFailed ? AppColors.danger : null,
+        ));
         Navigator.of(context).pop();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -254,20 +262,9 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                // Image picker placeholder
-                Center(
-                  child: GestureDetector(
-                    onTap: () {},
-                    child: Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                            style: BorderStyle.solid),
-                      ),
+                // Photo: edit only (create API has no image)
+                if (_isEditing) ...[
+                    Center(
                       child: GestureDetector(
                         onTap: _showImageSourceSheet,
                         child: Container(
@@ -278,8 +275,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                             color: AppColors.primary.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                                color:
-                                    AppColors.primary.withValues(alpha: 0.3)),
+                                color: AppColors.primary.withValues(alpha: 0.3)),
                           ),
                           child: _pickedImage != null
                               ? Image.file(_pickedImage!, fit: BoxFit.cover)
@@ -301,9 +297,8 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                         ),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 24),
+                  const SizedBox(height: 24),
+                ],
 
                 _sectionLabel(theme, 'Basic Information'),
                 const SizedBox(height: 8),

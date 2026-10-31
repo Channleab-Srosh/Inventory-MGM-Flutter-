@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart' show MediaType;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../core/constants/app_constants.dart';
@@ -43,6 +45,30 @@ class ApiService {
   bool get hasToken => _token != null && _token!.isNotEmpty;
 
   static const Duration defaultTimeout = Duration(seconds: 15);
+  static const Duration uploadTimeout = Duration(seconds: 60);
+
+  /// Server origin without the API prefix, e.g. http://192.168.0.242:8080
+  String get serverOrigin {
+    final u = Uri.parse(_baseUrl);
+    return '${u.scheme}://${u.host}${u.hasPort ? ':${u.port}' : ''}';
+  }
+
+  /// Turns whatever the backend stored in `imageUrl` into a URL this device can load.
+  ///  - relative path  (/uploads/images/x.jpg)        -> prefix with current server origin
+  ///  - absolute URL pointing to localhost / old IP   -> swap its origin for the current one
+  ///  - external URL (https://cdn.example.com/x.jpg)  -> unchanged
+  String? resolveImageUrl(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
+    final url = raw.trim();
+    if (url.startsWith('/')) return '$serverOrigin$url';
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) return url;
+    if (uri.path.startsWith('/uploads/')) {
+      final query = uri.hasQuery ? '?${uri.query}' : '';
+      return '$serverOrigin${uri.path}$query';
+    }
+    return url;
+  }
 
   /// Initialize service from local storage
   Future<void> init() async {
@@ -841,6 +867,7 @@ class ApiService {
     required double unitPrice,
     required int minimumStock,
     bool active = true,
+    String? imageUrl, // MUST be sent, otherwise the API clears the image
   }) async {
     final parsedCatId = _parseNumericId(categoryId);
     final parsedSupId = _parseNumericId(supplierId);
@@ -855,6 +882,7 @@ class ApiService {
       'unitPrice': unitPrice,
       'minimumStock': minimumStock,
       'active': active,
+      if (imageUrl != null && imageUrl.isNotEmpty) 'imageUrl': imageUrl,
     });
     return data as Map<String, dynamic>;
   }
@@ -875,6 +903,69 @@ class ApiService {
     if (ids.isEmpty) return;
     final idsStr = ids.join(',');
     await delete('/products/$idsStr');
+  }
+
+  static const int maxImageBytes = 5 * 1024 * 1024; // API limit: 5 MB
+
+  /// Detects the real image type from the first bytes of the file.
+  /// Returns (mimeType, extension) or null if it is not JPEG/PNG/GIF/WEBP.
+  Future<(String, String)?> _detectImageType(File file) async {
+    final raf = await file.open();
+    try {
+      final h = await raf.read(12);
+      bool at(int i, int v) => h.length > i && h[i] == v;
+      if (at(0, 0xFF) && at(1, 0xD8) && at(2, 0xFF)) return ('image/jpeg', '.jpg');
+      if (at(0, 0x89) && at(1, 0x50) && at(2, 0x4E) && at(3, 0x47)) {
+        return ('image/png', '.png');
+      }
+      if (at(0, 0x47) && at(1, 0x49) && at(2, 0x46) && at(3, 0x38)) {
+        return ('image/gif', '.gif');
+      }
+      if (at(0, 0x52) && at(1, 0x49) && at(2, 0x46) && at(3, 0x46) &&
+          at(8, 0x57) && at(9, 0x45) && at(10, 0x42) && at(11, 0x50)) {
+        return ('image/webp', '.webp');
+      }
+      return null;
+    } finally {
+      await raf.close();
+    }
+  }
+
+  /// Upload product image: POST /products/{id}/image (multipart/form-data, field "file")
+  /// Returns the updated product JSON (contains the new `imageUrl`).
+  Future<Map<String, dynamic>> uploadProductImage(dynamic id, File file) async {
+    // Client-side checks (same rules as the API) so errors are clear and instant
+    if (await file.length() > maxImageBytes) {
+      throw ApiException('Image must not exceed 5 MB', statusCode: 400);
+    }
+    final type = await _detectImageType(file);
+    if (type == null) {
+      throw ApiException('Unsupported image type. Allowed: JPEG, PNG, GIF, WEBP',
+          statusCode: 400);
+    }
+    final (mime, ext) = type;
+    final parts = mime.split('/');
+
+    Future<http.Response> send(String base) async {
+      final request =
+          http.MultipartRequest('POST', Uri.parse('$base/products/$id/image'))
+            ..headers['Accept'] = 'application/json';
+      if (hasToken) request.headers['Authorization'] = 'Bearer $_token';
+
+      request.files.add(await http.MultipartFile.fromPath(
+        'file', // must match @RequestParam("file")
+        file.path,
+        // The API checks BOTH the content type and the file extension,
+        // so set them from the real file type, not from the picker's temp name.
+        filename: 'product$ext',
+        contentType: MediaType(parts[0], parts[1]),
+      ));
+      final streamed = await request.send().timeout(uploadTimeout);
+      return http.Response.fromStream(streamed);
+    }
+
+    final data = await _executeWithFallback(send);
+    return data as Map<String, dynamic>;
   }
 
   // ==========================================
