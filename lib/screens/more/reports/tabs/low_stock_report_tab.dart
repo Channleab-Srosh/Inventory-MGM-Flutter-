@@ -36,12 +36,22 @@ class _LowStockReportTabState extends State<LowStockReportTab> {
     _fetchReport();
   }
 
+  @override
+  void didUpdateWidget(covariant LowStockReportTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Period changed (Today / This Week / This Month / Custom): reload
+    if (oldWidget.dateRange != widget.dateRange) _fetchReport();
+  }
+
   Future<void> _fetchReport() async {
     setState(() => _isLoading = true);
     List<InventoryReportItem>? items;
     try {
-      // all pages, so the date filter sees every low-stock product
-      items = await ReportDataService.fetchInventory(lowStockOnly: true);
+      // The API filters by period and returns only low / out-of-stock products
+      items = await ReportDataService.fetchInventory(
+        range: widget.dateRange,
+        lowStockOnly: true,
+      );
     } catch (_) {
       items = null; // falls back to the products already loaded in the app
     }
@@ -58,13 +68,13 @@ class _LowStockReportTabState extends State<LowStockReportTab> {
     final products = context.watch<ProductProvider>();
     final categories = context.watch<CategoryProvider>();
 
-    // Date filter: low-stock products updated inside the selected period
+    // Only used if the report request failed: filter the local list by period
     final range = widget.dateRange;
-    final items = _reportItems == null
-        ? null
-        : ReportDataService.updatedInRange(_reportItems!, range);
+    final items = _reportItems; // already filtered by the server
     final localLow = products.lowStockProducts
-        .where((p) => ReportDataService.inRange(p.updatedAt, range))
+        .where((p) =>
+            !p.updatedAt.isBefore(range.start) &&
+            !p.updatedAt.isAfter(range.end))
         .toList();
 
     final lowStockCount = items != null

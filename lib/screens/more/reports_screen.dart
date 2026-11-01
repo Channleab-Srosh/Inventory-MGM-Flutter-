@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import '../../core/services/report_pdf_service.dart';
 import '../../core/theme/app_theme.dart';
-import '../../providers/settings_provider.dart';
 import 'reports/tabs/stock_summary_tab.dart';
 import 'reports/tabs/stock_in_report_tab.dart';
 import 'reports/tabs/stock_out_report_tab.dart';
@@ -133,15 +131,13 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
   }
 
-  /// Builds the PDF for the currently selected report tab and opens the
-  /// share / save sheet.
+  /// Downloads the PDF for the currently selected report tab from the API
+  /// (same period as the screen) and opens the share / save sheet.
   Future<void> _exportPdf(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
     final index = _tabCtrl.index;
     final title = _getReportTitle(index);
     final range = _getActiveDateRange();
-    final period = _getPeriodLabel();
-    final symbol = context.read<SettingsProvider>().currencySymbol;
 
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
@@ -165,15 +161,11 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
 
     try {
-      final bytes = await ReportPdfService.build(
+      final path = await ReportPdfService.exportPdf(
         reportIndex: index,
-        title: title,
-        periodLabel: period,
         range: range,
-        currencySymbol: symbol,
       );
       messenger.hideCurrentSnackBar();
-      final path = await ReportPdfService.share(bytes, title);
       messenger.showSnackBar(
         SnackBar(
           content: Text('PDF saved: $path'),

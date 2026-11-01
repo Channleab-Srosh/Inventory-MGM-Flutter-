@@ -26,14 +26,8 @@ class StockSummaryReportTab extends StatefulWidget {
   State<StockSummaryReportTab> createState() => _StockSummaryReportTabState();
 }
 
-class _CategoryTotal {
-  int items = 0;
-  int units = 0;
-  double value = 0;
-}
-
 class _StockSummaryReportTabState extends State<StockSummaryReportTab> {
-  List<InventoryReportItem>? _allItems; // every product from the API
+  InventorySummaryReport? _summary; // calculated by the server
   bool _loading = true;
   bool _failed = false;
 
@@ -43,16 +37,24 @@ class _StockSummaryReportTabState extends State<StockSummaryReportTab> {
     _load();
   }
 
+  @override
+  void didUpdateWidget(covariant StockSummaryReportTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Period changed (Today / This Week / This Month / Custom): reload
+    if (oldWidget.dateRange != widget.dateRange) _load();
+  }
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
       _failed = false;
     });
     try {
-      final items = await ReportDataService.fetchInventory();
+      final summary =
+          await ReportDataService.fetchInventorySummary(widget.dateRange);
       if (mounted) {
         setState(() {
-          _allItems = items;
+          _summary = summary;
           _loading = false;
         });
       }
@@ -105,7 +107,7 @@ class _StockSummaryReportTabState extends State<StockSummaryReportTab> {
       subtitle: 'Products updated in this period: catalog health and stock levels',
     );
 
-    if (_loading && _allItems == null) {
+    if (_loading && _summary == null) {
       return ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -120,7 +122,7 @@ class _StockSummaryReportTabState extends State<StockSummaryReportTab> {
       );
     }
 
-    if (_failed || _allItems == null) {
+    if (_failed || _summary == null) {
       return ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -134,27 +136,18 @@ class _StockSummaryReportTabState extends State<StockSummaryReportTab> {
       );
     }
 
-    // Date filter: products whose stock/details were updated inside the period
-    final items = ReportDataService.updatedInRange(_allItems!, widget.dateRange);
+    // Totals and category breakdown come from GET /reports/inventory/summary
+    final summary = _summary!;
+    final totalItems = summary.totalItems;
+    final totalUnits = summary.totalUnits;
+    final totalVal = summary.totalInventoryValuation;
+    final inStockCount = summary.inStockCount;
+    final lowStockCount = summary.lowStockCount;
+    final outOfStockCount = summary.outOfStockCount;
 
-    final outOfStockCount = items.where((i) => i.stockQuantity <= 0).length;
-    final lowStockCount =
-        items.where((i) => i.stockQuantity > 0 && i.lowStock).length;
-    final inStockCount = items.length - outOfStockCount - lowStockCount;
-    final totalUnits = items.fold<int>(0, (s, i) => s + i.stockQuantity);
-    final totalVal = items.fold<double>(0, (s, i) => s + i.totalValue);
-
-    // Category breakdown (largest value first)
-    final byCategory = <String, _CategoryTotal>{};
-    for (final i in items) {
-      final t = byCategory.putIfAbsent(
-          i.categoryName ?? 'Uncategorized', () => _CategoryTotal());
-      t.items += 1;
-      t.units += i.stockQuantity;
-      t.value += i.totalValue;
-    }
-    final categories = byCategory.entries.toList()
-      ..sort((a, b) => b.value.value.compareTo(a.value.value));
+    // Largest valuation first
+    final categories = [...summary.categoryBreakdown]
+      ..sort((a, b) => b.totalValuation.compareTo(a.totalValuation));
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -169,7 +162,7 @@ class _StockSummaryReportTabState extends State<StockSummaryReportTab> {
               Expanded(
                 child: SummaryCard(
                   title: 'Total Items',
-                  value: '${items.length}',
+                  value: '$totalItems',
                   icon: Icons.inventory_2_outlined,
                   color: AppColors.primary,
                 ),
@@ -195,7 +188,7 @@ class _StockSummaryReportTabState extends State<StockSummaryReportTab> {
           ),
           const SizedBox(height: 20),
 
-          if (items.isEmpty)
+          if (totalItems == 0)
             const Card(
               child: Padding(
                 padding: EdgeInsets.all(24),
@@ -281,8 +274,7 @@ class _StockSummaryReportTabState extends State<StockSummaryReportTab> {
                 separatorBuilder: (_, __) =>
                     const Divider(height: 1, indent: 16),
                 itemBuilder: (_, i) {
-                  final entry = categories[i];
-                  final t = entry.value;
+                  final c = categories[i];
                   return ListTile(
                     leading: Container(
                       width: 36,
@@ -294,11 +286,11 @@ class _StockSummaryReportTabState extends State<StockSummaryReportTab> {
                       child: const Icon(Icons.category_outlined,
                           color: AppColors.primary, size: 18),
                     ),
-                    title: Text(entry.key,
+                    title: Text(c.categoryName,
                         style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text('${t.items} items · ${t.units} units'),
+                    subtitle: Text('${c.totalItems} items · ${c.totalUnits} units'),
                     trailing: Text(
-                      AppUtils.formatCurrency(t.value,
+                      AppUtils.formatCurrency(c.totalValuation,
                           symbol: settings.currencySymbol),
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),

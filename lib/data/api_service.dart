@@ -46,6 +46,7 @@ class ApiService {
 
   static const Duration defaultTimeout = Duration(seconds: 15);
   static const Duration uploadTimeout = Duration(seconds: 60);
+  static const Duration downloadTimeout = Duration(seconds: 90);
 
   /// Server origin without the API prefix, e.g. http://192.168.0.242:8080
   String get serverOrigin {
@@ -1199,25 +1200,70 @@ class ApiService {
   // REPORT ENDPOINTS
   // ==========================================
 
+  /// Device timezone as a UTC offset the API accepts for `zoneId`, e.g. "+07:00".
+  /// The API uses it to print report timestamps in the user's local time.
+  String get reportZoneId {
+    final off = DateTime.now().timeZoneOffset;
+    final abs = off.abs();
+    final h = abs.inHours.toString().padLeft(2, '0');
+    final m = (abs.inMinutes % 60).toString().padLeft(2, '0');
+    return '${off.isNegative ? '-' : '+'}$h:$m';
+  }
+
+  /// Query parameters shared by GET /reports/inventory, /reports/inventory/summary
+  /// and /reports/inventory/export.
+  /// [fromDate]/[toDate] filter products by their last update (period = CUSTOM).
+  /// [stockStatus]: ALL, IN_STOCK, LOW_STOCK or OUT_OF_STOCK.
+  Map<String, dynamic> _inventoryReportParams({
+    String? keyword,
+    dynamic categoryId,
+    dynamic supplierId,
+    bool? active,
+    String? stockStatus,
+    bool? lowStockOnly,
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) {
+    final parsedCatId = _parseNumericId(categoryId);
+    final parsedSupId = _parseNumericId(supplierId);
+    return {
+      if (keyword != null && keyword.isNotEmpty) 'keyword': keyword,
+      if (parsedCatId != null) 'categoryId': parsedCatId,
+      if (parsedSupId != null) 'supplierId': parsedSupId,
+      if (active != null) 'active': active,
+      if (stockStatus != null && stockStatus.isNotEmpty) 'stockStatus': stockStatus,
+      if (lowStockOnly != null) 'lowStockOnly': lowStockOnly,
+      if (fromDate != null || toDate != null) 'period': 'CUSTOM',
+      if (fromDate != null) 'fromDate': fromDate.toUtc().toIso8601String(),
+      if (toDate != null) 'toDate': toDate.toUtc().toIso8601String(),
+      'zoneId': reportZoneId,
+    };
+  }
+
   /// Inventory report: GET /reports/inventory
   Future<List<dynamic>> getInventoryReport({
     String? keyword,
     dynamic categoryId,
     dynamic supplierId,
     bool? active,
+    String? stockStatus,
     bool? lowStockOnly,
+    DateTime? fromDate,
+    DateTime? toDate,
     int page = 0,
     int size = 100,
   }) async {
-    final parsedCatId = _parseNumericId(categoryId);
-    final parsedSupId = _parseNumericId(supplierId);
-
     final data = await get('/reports/inventory', queryParams: {
-      if (keyword != null && keyword.isNotEmpty) 'keyword': keyword,
-      if (parsedCatId != null) 'categoryId': parsedCatId,
-      if (parsedSupId != null) 'supplierId': parsedSupId,
-      if (active != null) 'active': active,
-      if (lowStockOnly != null) 'lowStockOnly': lowStockOnly,
+      ..._inventoryReportParams(
+        keyword: keyword,
+        categoryId: categoryId,
+        supplierId: supplierId,
+        active: active,
+        stockStatus: stockStatus,
+        lowStockOnly: lowStockOnly,
+        fromDate: fromDate,
+        toDate: toDate,
+      ),
       'page': page,
       'size': size,
       'sort': 'id,asc',
@@ -1234,20 +1280,25 @@ class ApiService {
     dynamic categoryId,
     dynamic supplierId,
     bool? active,
+    String? stockStatus,
     bool? lowStockOnly,
+    DateTime? fromDate,
+    DateTime? toDate,
     int page = 0,
     int size = 20,
     String sort = 'id,asc',
   }) async {
-    final parsedCatId = _parseNumericId(categoryId);
-    final parsedSupId = _parseNumericId(supplierId);
-
     final data = await get('/reports/inventory', queryParams: {
-      if (keyword != null && keyword.isNotEmpty) 'keyword': keyword,
-      if (parsedCatId != null) 'categoryId': parsedCatId,
-      if (parsedSupId != null) 'supplierId': parsedSupId,
-      if (active != null) 'active': active,
-      if (lowStockOnly != null) 'lowStockOnly': lowStockOnly,
+      ..._inventoryReportParams(
+        keyword: keyword,
+        categoryId: categoryId,
+        supplierId: supplierId,
+        active: active,
+        stockStatus: stockStatus,
+        lowStockOnly: lowStockOnly,
+        fromDate: fromDate,
+        toDate: toDate,
+      ),
       'page': page,
       'size': size,
       'sort': sort,
@@ -1258,6 +1309,31 @@ class ApiService {
     return PagedResult.empty(page: page, size: size);
   }
 
+  /// Stock summary + category breakdown: GET /reports/inventory/summary
+  /// Totals are calculated by the server for the applied filters.
+  Future<Map<String, dynamic>> getInventorySummaryReport({
+    String? keyword,
+    dynamic categoryId,
+    dynamic supplierId,
+    bool? active,
+    String? stockStatus,
+    bool? lowStockOnly,
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    final data = await get('/reports/inventory/summary',
+        queryParams: _inventoryReportParams(
+          keyword: keyword,
+          categoryId: categoryId,
+          supplierId: supplierId,
+          active: active,
+          stockStatus: stockStatus,
+          lowStockOnly: lowStockOnly,
+          fromDate: fromDate,
+          toDate: toDate,
+        ));
+    return data is Map<String, dynamic> ? data : <String, dynamic>{};
+  }
 
   /// Stock transaction report: GET /reports/stock-transactions
   Future<List<dynamic>> getStockTransactionReport({
@@ -1277,8 +1353,10 @@ class ApiService {
       if (parsedProdId != null) 'productId': parsedProdId,
       if (normType != null && normType.isNotEmpty) 'type': normType,
       if (parsedUserId != null) 'userId': parsedUserId,
+      if (fromDate != null || toDate != null) 'period': 'CUSTOM',
       if (fromDate != null) 'fromDate': fromDate.toUtc().toIso8601String(),
       if (toDate != null) 'toDate': toDate.toUtc().toIso8601String(),
+      'zoneId': reportZoneId,
       'page': page,
       'size': size,
       'sort': 'createdAt,desc',
@@ -1289,4 +1367,110 @@ class ApiService {
     return [];
   }
 
+  // ------------------------------------------
+  // Report file export (generated by the API)
+  // ------------------------------------------
+
+  /// Export inventory report: GET /reports/inventory/export
+  /// [format] is 'PDF' or 'EXCEL'.
+  Future<DownloadedFile> exportInventoryReport({
+    String format = 'PDF',
+    String? keyword,
+    dynamic categoryId,
+    dynamic supplierId,
+    bool? active,
+    String? stockStatus,
+    bool? lowStockOnly,
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) {
+    return _downloadFile('/reports/inventory/export', {
+      'format': format,
+      ..._inventoryReportParams(
+        keyword: keyword,
+        categoryId: categoryId,
+        supplierId: supplierId,
+        active: active,
+        stockStatus: stockStatus,
+        lowStockOnly: lowStockOnly,
+        fromDate: fromDate,
+        toDate: toDate,
+      ),
+    });
+  }
+
+  /// Export stock transactions: GET /reports/stock-transactions/export
+  /// [format] is 'PDF' or 'EXCEL'. [type] is 'STOCK_IN', 'STOCK_OUT' or null for both.
+  Future<DownloadedFile> exportStockTransactionReport({
+    String format = 'PDF',
+    dynamic productId,
+    dynamic type,
+    dynamic userId,
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) {
+    final parsedProdId = _parseNumericId(productId);
+    final parsedUserId = _parseNumericId(userId);
+    final normType = _normalizeTransactionType(type);
+    return _downloadFile('/reports/stock-transactions/export', {
+      'format': format,
+      if (parsedProdId != null) 'productId': parsedProdId,
+      if (normType != null && normType.isNotEmpty) 'type': normType,
+      if (parsedUserId != null) 'userId': parsedUserId,
+      // The API defaults to THIS_MONTH, so always send the exact range
+      'period': 'CUSTOM',
+      if (fromDate != null) 'fromDate': fromDate.toUtc().toIso8601String(),
+      if (toDate != null) 'toDate': toDate.toUtc().toIso8601String(),
+      'zoneId': reportZoneId,
+    });
+  }
+
+  /// GET a binary file (PDF/Excel). Reuses the normal error + 401 handling,
+  /// so a failed export throws an [ApiException] with the server's message.
+  Future<DownloadedFile> _downloadFile(
+    String endpoint,
+    Map<String, dynamic> queryParams,
+  ) async {
+    http.Response? last;
+
+    await _executeWithFallback((base) async {
+      final cleanParams = <String, String>{};
+      queryParams.forEach((key, val) {
+        if (val != null) cleanParams[key] = val.toString();
+      });
+      final uri =
+          Uri.parse('$base$endpoint').replace(queryParameters: cleanParams);
+      final headers = <String, String>{'Accept': '*/*'};
+      if (hasToken) headers['Authorization'] = 'Bearer $_token';
+
+      final response =
+          await http.get(uri, headers: headers).timeout(downloadTimeout);
+      last = response;
+      return response;
+    });
+
+    final response = last!;
+    final disposition = response.headers['content-disposition'] ?? '';
+    final match = RegExp(r'filename="?([^";]+)"?').firstMatch(disposition);
+
+    return DownloadedFile(
+      bytes: response.bodyBytes,
+      fileName: match?.group(1) ?? 'report',
+      contentType: response.headers['content-type'] ?? '',
+    );
+  }
+
+}
+
+/// A file returned by the API (generated report).
+class DownloadedFile {
+  final List<int> bytes;
+  final String fileName;
+  final String contentType;
+
+  const DownloadedFile({
+    required this.bytes,
+    required this.fileName,
+    required this.contentType,
+  });
 }
