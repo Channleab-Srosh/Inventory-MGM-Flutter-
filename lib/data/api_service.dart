@@ -49,9 +49,50 @@ class ApiService {
   static const Duration downloadTimeout = Duration(seconds: 90);
 
   /// Server origin without the API prefix, e.g. http://192.168.0.242:8080
+  /// Cleans and sanitizes a URL string by trimming whitespace, stripping non-printable
+  /// ASCII/control characters (e.g. \x16/SYN, newlines), invisible unicode characters,
+  /// and fixing stray percent-encoded control codes before hostnames.
+  static String sanitizeUrl(String? raw) {
+    if (raw == null) return '';
+    var clean = raw
+        .replaceAll(RegExp(r'[\x00-\x1F\x7F\u200B-\u200D\uFEFF]'), '')
+        .trim();
+    // Strip stray percent-encoded control codes accidentally prepended to host
+    clean = clean.replaceAll(RegExp(r'(https?://)%[0-9a-fA-F]{2}'), r'$1');
+    return clean;
+  }
+
+  /// Checks if a string can be safely parsed as a valid HTTP or HTTPS URI
+  static bool isValidBaseUrl(String? url) {
+    if (url == null) return false;
+    final clean = sanitizeUrl(url);
+    if (clean.isEmpty) return false;
+    try {
+      final uri = Uri.parse(clean);
+      return (uri.scheme == 'http' || uri.scheme == 'https') &&
+          uri.host.isNotEmpty &&
+          !uri.host.contains('%');
+    } catch (_) {
+      return false;
+    }
+  }
+
   String get serverOrigin {
-    final u = Uri.parse(_baseUrl);
-    return '${u.scheme}://${u.host}${u.hasPort ? ':${u.port}' : ''}';
+    try {
+      final clean = sanitizeUrl(_baseUrl);
+      final u = Uri.parse(clean);
+      return '${u.scheme}://${u.host}${u.hasPort ? ':${u.port}' : ''}';
+  
+    } catch (_) {
+      try {
+        final u = Uri.parse(AppConstants.defaultBaseUrl);
+        return '${u.scheme}://${u.host}${u.hasPort ? ':${u.port}' : ''}';
+    
+      } catch (_) {
+        return 'http://172.20.10.10:8080';
+      }
+    }
+
   }
 
   /// Turns whatever the backend stored in `imageUrl` into a URL this device can load.
@@ -899,6 +940,17 @@ class ApiService {
     await delete('/products/$id');
   }
 
+  /// Get all units of measure from backend: GET /products/units
+  Future<List<String>> getUnitsOfMeasure() async {
+    try {
+      final data = await get('/products/units');
+      if (data is List) {
+        return data.map((e) => e.toString().toLowerCase()).toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
   /// Bulk delete products: DELETE /products/1,2,3
   Future<void> deleteProducts(List<int> ids) async {
     if (ids.isEmpty) return;
@@ -941,7 +993,7 @@ class ApiService {
     }
     final type = await _detectImageType(file);
     if (type == null) {
-      throw ApiException('Unsupported image type. Allowed: JPEG, PNG, GIF, WEBP',
+      throw ApiException('Unsupported image type. Allowed: JPEG, PNG, GIF, WEBP, JFIF',
           statusCode: 400);
     }
     final (mime, ext) = type;
@@ -978,6 +1030,7 @@ class ApiService {
     required dynamic productId,
     required int quantity,
     String? note,
+    DateTime? transactionDate,
   }) async {
     final pId = _parseNumericId(productId);
     final cleanNote = note != null && note.isNotEmpty
@@ -988,6 +1041,8 @@ class ApiService {
       'productId': pId,
       'quantity': quantity,
       if (cleanNote != null) 'note': cleanNote,
+      if (transactionDate != null)
+        'transactionDate': transactionDate.toUtc().toIso8601String(),
     });
     return data as Map<String, dynamic>;
   }
@@ -997,6 +1052,7 @@ class ApiService {
     required dynamic productId,
     required int quantity,
     String? note,
+    DateTime? transactionDate,
   }) async {
     final pId = _parseNumericId(productId);
     final cleanNote = note != null && note.isNotEmpty
@@ -1007,6 +1063,8 @@ class ApiService {
       'productId': pId,
       'quantity': quantity,
       if (cleanNote != null) 'note': cleanNote,
+      if (transactionDate != null)
+        'transactionDate': transactionDate.toUtc().toIso8601String(),
     });
     return data as Map<String, dynamic>;
   }
@@ -1056,12 +1114,19 @@ class ApiService {
     final parsedUserId = _parseNumericId(userId);
     final normType = _normalizeTransactionType(type);
 
+    final normalizedFrom = fromDate != null
+        ? DateTime(fromDate.year, fromDate.month, fromDate.day, 0, 0, 0, 0).toUtc().toIso8601String()
+        : null;
+    final normalizedTo = toDate != null
+        ? DateTime(toDate.year, toDate.month, toDate.day, 23, 59, 59, 999).toUtc().toIso8601String()
+        : null;
+
     final data = await get('/stock/history', queryParams: {
       if (parsedProdId != null) 'productId': parsedProdId,
       if (normType != null && normType.isNotEmpty) 'type': normType,
       if (parsedUserId != null) 'userId': parsedUserId,
-      if (fromDate != null) 'fromDate': fromDate.toUtc().toIso8601String(),
-      if (toDate != null) 'toDate': toDate.toUtc().toIso8601String(),
+      if (normalizedFrom != null) 'fromDate': normalizedFrom,
+      if (normalizedTo != null) 'toDate': normalizedTo,
       'page': page,
       'size': size,
       'sort': sort,
@@ -1163,6 +1228,7 @@ class ApiService {
   /// Update user: PUT /users/{id}
   Future<Map<String, dynamic>> updateUser(
     dynamic id, {
+    String? username,
     required String email,
     String? password,
     required String fullName,
@@ -1170,6 +1236,7 @@ class ApiService {
     required String role,
   }) async {
     final data = await put('/users/$id', body: {
+      if (username != null && username.isNotEmpty) 'username': username,
       'email': email,
       if (password != null && password.isNotEmpty) 'password': password,
       'fullName': fullName,
@@ -1312,6 +1379,7 @@ class ApiService {
   /// Stock summary + category breakdown: GET /reports/inventory/summary
   /// Totals are calculated by the server for the applied filters.
   Future<Map<String, dynamic>> getInventorySummaryReport({
+    String? period,
     String? keyword,
     dynamic categoryId,
     dynamic supplierId,
@@ -1321,17 +1389,20 @@ class ApiService {
     DateTime? fromDate,
     DateTime? toDate,
   }) async {
-    final data = await get('/reports/inventory/summary',
-        queryParams: _inventoryReportParams(
-          keyword: keyword,
-          categoryId: categoryId,
-          supplierId: supplierId,
-          active: active,
-          stockStatus: stockStatus,
-          lowStockOnly: lowStockOnly,
-          fromDate: fromDate,
-          toDate: toDate,
-        ));
+    final params = <String, dynamic>{
+      ..._inventoryReportParams(
+        keyword: keyword,
+        categoryId: categoryId,
+        supplierId: supplierId,
+        active: active,
+        stockStatus: stockStatus,
+        lowStockOnly: lowStockOnly,
+        fromDate: fromDate,
+        toDate: toDate,
+      ),
+      if (period != null && period.isNotEmpty) 'period': period,
+    };
+    final data = await get('/reports/inventory/summary', queryParams: params);
     return data is Map<String, dynamic> ? data : <String, dynamic>{};
   }
 
