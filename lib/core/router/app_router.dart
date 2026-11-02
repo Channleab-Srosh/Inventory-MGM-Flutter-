@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../screens/more/reports/report_pdf_preview_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -159,6 +160,18 @@ class AppRouter {
         parentNavigatorKey: _rootKey,
         builder: (_, __) => const ProductsManagementScreen(),
       ),
+      GoRoute(
+            path: '/reports/preview',
+            parentNavigatorKey: _rootKey,
+            builder: (context, state) {
+              final extra = state.extra as Map<String, dynamic>;
+              return ReportPdfPreviewScreen(
+                title: extra['title'] as String,
+                reportIndex: extra['reportIndex'] as int,
+                range: extra['range'] as DateTimeRange,
+              );
+            },
+          ),
       GoRoute(
         path: '/more/categories',
         parentNavigatorKey: _rootKey,

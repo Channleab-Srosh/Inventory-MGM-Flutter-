@@ -14,6 +14,53 @@ import 'package:inventory_management/data/api_service.dart';
 class ReportPdfService {
   ReportPdfService._();
 
+  /// Fetches the raw PDF bytes for [reportIndex] and [range] from API for preview.
+  static Future<Uint8List> getPdfBytes({
+    required int reportIndex,
+    required DateTimeRange range,
+  }) async {
+    final file = await fetchReportFile(reportIndex: reportIndex, range: range);
+    return Uint8List.fromList(file.bytes);
+  }
+
+  /// Downloads the [DownloadedFile] from the API.
+  static Future<DownloadedFile> fetchReportFile({
+    required int reportIndex,
+    required DateTimeRange range,
+  }) async {
+    final api = ApiService();
+    switch (reportIndex) {
+      case 1:
+        return await api.exportStockTransactionReport(
+          type: 'STOCK_IN',
+          fromDate: range.start,
+          toDate: range.end,
+        );
+      case 2:
+        return await api.exportStockTransactionReport(
+          type: 'STOCK_OUT',
+          fromDate: range.start,
+          toDate: range.end,
+        );
+      case 4:
+        return await api.exportStockTransactionReport(
+          fromDate: range.start,
+          toDate: range.end,
+        );
+      case 3:
+        return await api.exportInventoryReport(
+          lowStockOnly: true,
+          fromDate: range.start,
+          toDate: range.end,
+        );
+      default:
+        return await api.exportInventoryReport(
+          fromDate: range.start,
+          toDate: range.end,
+        );
+    }
+  }
+
   /// Downloads the PDF for [reportIndex] and [range], saves it on the device
   /// and opens the share sheet. Returns the path of the saved file.
   static Future<String> exportPdf({

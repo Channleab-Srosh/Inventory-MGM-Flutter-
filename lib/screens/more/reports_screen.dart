@@ -7,7 +7,7 @@ import 'reports/tabs/stock_in_report_tab.dart';
 import 'reports/tabs/stock_out_report_tab.dart';
 import 'reports/tabs/low_stock_report_tab.dart';
 import 'reports/tabs/transaction_history_tab.dart';
-
+import 'package:go_router/go_router.dart';
 
 enum DateFilterPeriod { today, thisWeek, thisMonth, custom }
 
@@ -108,10 +108,21 @@ class _ReportsScreenState extends State<ReportsScreen>
               spacing: 8,
               runSpacing: 8,
               children: [
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primaryDark,
+                  ),
+                  icon: const Icon(Icons.visibility_outlined, size: 18),
+                  label: const Text('Preview PDF'),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _previewPdf(context);
+                  },
+                ),
                 OutlinedButton.icon(
                   icon: const Icon(Icons.picture_as_pdf_outlined,
                       color: AppColors.outOfStockText),
-                  label: const Text('PDF Document'),
+                  label: const Text('Download / Share'),
                   onPressed: () {
                     Navigator.pop(ctx);
                     _exportPdf(context);
@@ -185,6 +196,21 @@ class _ReportsScreenState extends State<ReportsScreen>
     }
   }
 
+  void _previewPdf(BuildContext context) {
+    final index = _tabCtrl.index;
+    final title = _getReportTitle(index);
+    final range = _getActiveDateRange();
+
+    context.push(
+      '/reports/preview',
+      extra: {
+        'title': title,
+        'reportIndex': index,
+        'range': range,
+      },
+    );
+  }
+
   String _getReportTitle(int index) {
     switch (index) {
       case 0:
@@ -228,7 +254,8 @@ class _ReportsScreenState extends State<ReportsScreen>
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.download_rounded, size: 16, color: AppColors.secondaryText),
+                  Icon(Icons.download_rounded,
+                      size: 16, color: AppColors.secondaryText),
                   SizedBox(width: 6),
                   Text(
                     'Export',
@@ -258,8 +285,8 @@ class _ReportsScreenState extends State<ReportsScreen>
                     _PeriodChip(
                       label: 'Today',
                       selected: _selectedPeriod == DateFilterPeriod.today,
-                      onTap: () =>
-                          setState(() => _selectedPeriod = DateFilterPeriod.today),
+                      onTap: () => setState(
+                          () => _selectedPeriod = DateFilterPeriod.today),
                     ),
                     const SizedBox(width: 8),
                     _PeriodChip(
@@ -288,9 +315,10 @@ class _ReportsScreenState extends State<ReportsScreen>
                           lastDate: DateTime.now(),
                           builder: (context, child) => Theme(
                             data: Theme.of(context).copyWith(
-                              colorScheme: Theme.of(context).colorScheme.copyWith(
-                                primary: AppColors.primaryDark,
-                              ),
+                              colorScheme:
+                                  Theme.of(context).colorScheme.copyWith(
+                                        primary: AppColors.primaryDark,
+                                      ),
                             ),
                             child: child!,
                           ),
@@ -329,7 +357,8 @@ class _ReportsScreenState extends State<ReportsScreen>
                   borderRadius: BorderRadius.circular(AppTheme.pillRadius),
                 ),
                 indicatorSize: TabBarIndicatorSize.label,
-                indicatorPadding: const EdgeInsets.symmetric(horizontal: -8, vertical: 6),
+                indicatorPadding:
+                    const EdgeInsets.symmetric(horizontal: -8, vertical: 6),
                 padding: const EdgeInsets.symmetric(horizontal: 18),
                 dividerColor: Colors.transparent,
                 tabs: const [
@@ -354,7 +383,8 @@ class _ReportsScreenState extends State<ReportsScreen>
               StockInReportTab(dateRange: range, periodLabel: periodLabel),
               StockOutReportTab(dateRange: range, periodLabel: periodLabel),
               LowStockReportTab(dateRange: range, periodLabel: periodLabel),
-              TransactionHistoryReportTab(dateRange: range, periodLabel: periodLabel),
+              TransactionHistoryReportTab(
+                  dateRange: range, periodLabel: periodLabel),
             ],
           ),
         ),
@@ -399,8 +429,11 @@ class _PeriodChip extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (icon != null) ...[
-                Icon(icon, size: 14,
-                    color: selected ? AppColors.primaryDark : AppColors.secondaryText),
+                Icon(icon,
+                    size: 14,
+                    color: selected
+                        ? AppColors.primaryDark
+                        : AppColors.secondaryText),
                 const SizedBox(width: 5),
               ],
               Text(
@@ -408,7 +441,9 @@ class _PeriodChip extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  color: selected ? AppColors.primaryDark : AppColors.secondaryText,
+                  color: selected
+                      ? AppColors.primaryDark
+                      : AppColors.secondaryText,
                 ),
               ),
             ],
