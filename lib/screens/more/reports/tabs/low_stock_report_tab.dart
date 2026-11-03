@@ -108,9 +108,11 @@ class _LowStockReportTabState extends State<LowStockReportTab> {
                 ))
             .toList();
 
-    final items = widget.isAllTime
+    final items = (widget.isAllTime
         ? allItems
-        : ReportDataService.updatedInRange(allItems, widget.dateRange);
+        : ReportDataService.updatedInRange(allItems, widget.dateRange))
+        .where((i) => i.active)
+        .toList();
 
     final lowStockCount = items.where((i) => i.isLowStock).length;
     final outOfStockCount = items.where((i) => i.isOutOfStock).length;

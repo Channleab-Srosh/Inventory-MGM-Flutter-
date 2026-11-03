@@ -325,17 +325,19 @@ class ReportDataService {
     required bool isAllTime,
   }) {
     if (isAllTime) {
-      final totalUnits = allItems.fold<int>(0, (s, i) => s + i.stockQuantity);
-      final totalVal = allItems.fold<double>(0.0, (s, i) => s + i.totalValue);
-      final outCount = allItems.where((i) => i.stockQuantity <= 0).length;
+      final activeItems = allItems.where((i) => i.active).toList();
+      final targetItems = activeItems.isNotEmpty ? activeItems : allItems;
+      final totalUnits = targetItems.fold<int>(0, (s, i) => s + i.stockQuantity);
+      final totalVal = targetItems.fold<double>(0.0, (s, i) => s + i.totalValue);
+      final outCount = targetItems.where((i) => i.stockQuantity <= 0).length;
       final lowCount =
-          allItems.where((i) => i.stockQuantity > 0 && i.lowStock).length;
+          targetItems.where((i) => i.stockQuantity > 0 && i.lowStock).length;
       final inCount =
-          (allItems.length - outCount - lowCount).clamp(0, 999999);
+          (targetItems.length - outCount - lowCount).clamp(0, 999999);
 
       // Group by category
       final catMap = <String, _CategoryAccumulator>{};
-      for (final i in allItems) {
+      for (final i in targetItems) {
         final cat = catMap.putIfAbsent(
             i.categoryName ?? 'Uncategorized', () => _CategoryAccumulator(i.categoryName ?? 'Uncategorized'));
         cat.productIds.add(i.id);
@@ -355,7 +357,7 @@ class ReportDataService {
       }).toList()
         ..sort((a, b) => b.netValue.compareTo(a.netValue));
 
-      final productRows = allItems.map((i) {
+      final productRows = targetItems.map((i) {
         final status = i.stockQuantity <= 0
             ? 'Out of Stock'
             : (i.lowStock ? 'Low Stock' : 'In Stock');
@@ -378,7 +380,7 @@ class ReportDataService {
 
       return StockSummaryData(
         isAllTime: true,
-        totalItems: allItems.length,
+        totalItems: targetItems.length,
         totalUnits: totalUnits,
         unitsIn: 0,
         unitsOut: 0,
@@ -454,25 +456,26 @@ class ReportDataService {
     final netValuation = totalValIn - totalValOut;
 
     // Transacted products stock health status in period mode:
-    // - inStockCount reflects distinct products that received incoming stock (Stock In) during the period.
-    // - outOfStockCount reflects transacted products that are currently depleted (currentQty <= 0).
-    // - lowStockCount reflects transacted products with only stock-out that are at or below minimum threshold.
+    // - outOfStockCount reflects products currently depleted (currentQty <= 0).
+    // - lowStockCount reflects products currently at or below minimum threshold (currentQty <= minStock).
+    // - inStockCount reflects products with healthy stock levels (currentQty > minStock).
     var inStock = 0;
     var lowStock = 0;
     var outOfStock = 0;
 
     for (final acc in accMap.values) {
       final p = acc.product;
+      if (p != null && !p.active) continue;
       final currentQty = p?.stockQuantity ?? (acc.unitsIn - acc.unitsOut);
       final minStock = p?.minimumStock ?? 0;
       final isLow = p?.lowStock ?? (currentQty <= minStock);
 
       if (currentQty <= 0) {
         outOfStock++;
-      } else if (acc.unitsIn > 0) {
-        inStock++;
       } else if (isLow) {
         lowStock++;
+      } else {
+        inStock++;
       }
     }
 
@@ -507,7 +510,9 @@ class ReportDataService {
       ..sort((a, b) => b.netValue.abs().compareTo(a.netValue.abs()));
 
     // Product rows
-    final productRows = accMap.values.map((acc) {
+    final productRows = accMap.values
+        .where((acc) => acc.product == null || acc.product!.active)
+        .map((acc) {
       final p = acc.product;
       final netPUnits = acc.unitsIn - acc.unitsOut;
       final pMovementVal = netPUnits * acc.price;
@@ -537,7 +542,7 @@ class ReportDataService {
 
     return StockSummaryData(
       isAllTime: false,
-      totalItems: accMap.length,
+      totalItems: inStock + lowStock + outOfStock,
       totalUnits: totalUnitsIn + totalUnitsOut,
       unitsIn: totalUnitsIn,
       unitsOut: totalUnitsOut,

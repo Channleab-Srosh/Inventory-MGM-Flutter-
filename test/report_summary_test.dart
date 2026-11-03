@@ -118,10 +118,10 @@ void main() {
       expect(summary.valuation, 750.0); // 800 - 50 = 750
 
       // Health of transacted items:
-      // Product 1 (Coke) had stock in -> In Stock
-      // Product 2 (MBP) had stock in -> In Stock
-      expect(summary.inStockCount, 2);
-      expect(summary.lowStockCount, 0);
+      // Product 1 (Coke: 50 > 20) -> In Stock
+      // Product 2 (MBP: 5 <= 10) -> Low Stock
+      expect(summary.inStockCount, 1);
+      expect(summary.lowStockCount, 1);
       expect(summary.outOfStockCount, 0);
 
       // Categories:
@@ -130,7 +130,7 @@ void main() {
       expect(summary.categories.first.netUnits, 3);
     });
 
-    test('Stock Status Distribution accurately reflects stock-in count matching stock-in transactions', () {
+    test('Stock Status Distribution accurately reflects stock health status of transacted items', () {
       final mixedMovements = [
         // 2 Stock In transactions for 2 distinct products (Coke and Pen)
         StockMovement(
@@ -167,8 +167,8 @@ void main() {
       ];
 
       final testItems = [
-        sampleItems[0], // Coke (qty 50 > min 20)
-        sampleItems[1], // MBP (qty 5 <= min 10)
+        sampleItems[0], // Coke (qty 50 > min 20) -> In Stock
+        sampleItems[1], // MBP (qty 5 <= min 10) -> Low Stock
         InventoryReportItem(
           id: '3',
           sku: 'SKU-PEN',
@@ -190,10 +190,10 @@ void main() {
         isAllTime: false,
       );
 
-      // Exactly 2 products were stocked in (Coke and Blue Pen)
-      expect(summary.inStockCount, 2);
-      // Product 2 had only stock-out and has low stock (5 <= 10)
-      expect(summary.lowStockCount, 1);
+      // Product 1 (Coke) is In Stock (50 > 20)
+      expect(summary.inStockCount, 1);
+      // Product 2 (MBP) and Product 3 (Pen) are both Low Stock (<= 10)
+      expect(summary.lowStockCount, 2);
       expect(summary.outOfStockCount, 0);
     });
 
