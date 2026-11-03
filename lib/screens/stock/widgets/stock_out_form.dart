@@ -96,6 +96,14 @@ class _StockOutFormState extends State<StockOutForm> {
       return;
     }
 
+    if (_reason == StockOutReason.sale && _selectedCustomer == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Customer is required for Sale stock-out operations'),
+        backgroundColor: AppColors.danger,
+      ));
+      return;
+    }
+
     final stock = context.read<StockProvider>();
     final products = context.read<ProductProvider>();
 
@@ -109,9 +117,17 @@ class _StockOutFormState extends State<StockOutForm> {
       ];
       final note = noteParts.join(' - ');
 
+      final backendReason = _reason == StockOutReason.damaged
+          ? 'DAMAGE'
+          : _reason == StockOutReason.sale
+              ? 'SALE'
+              : 'OTHER';
+
       await stock.recordStockOut(
         productId: _selectedProduct!.id,
         quantity: _quantity,
+        customerId: _selectedCustomer?.id,
+        reason: backendReason,
         note: note,
         transactionDate: _date,
       );
@@ -260,20 +276,51 @@ class _StockOutFormState extends State<StockOutForm> {
               Consumer<CustomerProvider>(
                 builder: (context, custProv, _) {
                   final customers = custProv.allCustomers;
-                  if (customers.isEmpty) return const SizedBox.shrink();
+                  final isSale = _reason == StockOutReason.sale;
+                  if (customers.isEmpty) {
+                    if (isSale) {
+                      return const Padding(
+                        padding: EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          'No customers found. Please add a customer in Customers screen to record sales.',
+                          style: TextStyle(color: AppColors.danger, fontSize: 13),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  }
+
+                  Customer? matchedCustomer;
+                  if (_selectedCustomer != null) {
+                    for (final c in customers) {
+                      if (c.id == _selectedCustomer!.id) {
+                        matchedCustomer = c;
+                        break;
+                      }
+                    }
+                  }
+
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: DropdownButtonFormField<Customer?>(
                       isExpanded: true,
-                      initialValue: _selectedCustomer,
-                      decoration: const InputDecoration(
-                        labelText: 'Customer (Optional)',
-                        prefixIcon: Icon(Icons.person_outline, size: 20),
+                      key: ValueKey('cust_${_selectedCustomer?.id}_$_reason'),
+                      initialValue: matchedCustomer,
+                      decoration: InputDecoration(
+                        labelText: isSale ? 'Customer *' : 'Customer (Optional)',
+                        prefixIcon: const Icon(Icons.person_outline, size: 20),
+                        helperText: isSale ? 'Customer is required for Sale operations' : null,
                       ),
+                      validator: (val) {
+                        if (isSale && val == null) {
+                          return 'Customer is required for Sale';
+                        }
+                        return null;
+                      },
                       items: [
-                        const DropdownMenuItem<Customer?>(
+                        DropdownMenuItem<Customer?>(
                           value: null,
-                          child: Text('No Customer Selected'),
+                          child: Text(isSale ? 'Select a Customer *' : 'No Customer Selected'),
                         ),
                         ...customers.map((c) => DropdownMenuItem<Customer?>(
                               value: c,

@@ -49,6 +49,16 @@ class StockMovement {
         '';
     final isOut = rawType.contains('OUT');
 
+    StockOutReason? parsedReason;
+    final rawReason = json['reason']?.toString().toUpperCase() ?? '';
+    if (rawReason.contains('SALE')) {
+      parsedReason = StockOutReason.sale;
+    } else if (rawReason.contains('DAMAG')) {
+      parsedReason = StockOutReason.damaged;
+    } else if (rawReason.isNotEmpty) {
+      parsedReason = StockOutReason.other;
+    }
+
     return StockMovement(
       id: json['id']?.toString() ?? '',
       productId: json['productId']?.toString() ?? '',
@@ -64,6 +74,7 @@ class StockMovement {
           (json['stockAfter'] as num?)?.toInt(),
       unitCost: (json['unitCost'] as num?)?.toDouble(),
       supplierId: json['supplierId']?.toString(),
+      reason: parsedReason,
       reference: json['reference']?.toString() ?? json['productSku']?.toString(),
       note: json['note']?.toString(),
       userId: json['createdById']?.toString() ?? json['userId']?.toString() ?? '1',

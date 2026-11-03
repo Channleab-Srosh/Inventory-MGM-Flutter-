@@ -1028,10 +1028,13 @@ class ApiService {
   Future<Map<String, dynamic>> stockIn({
     required dynamic productId,
     required int quantity,
+    dynamic supplierId,
+    double? unitCost,
     String? note,
     DateTime? transactionDate,
   }) async {
     final pId = _parseNumericId(productId);
+    final supId = _parseNumericId(supplierId);
     final cleanNote = note != null && note.isNotEmpty
         ? (note.length > 255 ? note.substring(0, 255) : note)
         : null;
@@ -1039,6 +1042,8 @@ class ApiService {
     final data = await post('/stock/in', body: {
       'productId': pId,
       'quantity': quantity,
+      if (supId != null) 'supplierId': supId,
+      if (unitCost != null) 'unitCost': unitCost,
       if (cleanNote != null) 'note': cleanNote,
       if (transactionDate != null)
         'transactionDate': transactionDate.toUtc().toIso8601String(),
@@ -1050,10 +1055,13 @@ class ApiService {
   Future<Map<String, dynamic>> stockOut({
     required dynamic productId,
     required int quantity,
+    dynamic customerId,
+    String? reason,
     String? note,
     DateTime? transactionDate,
   }) async {
     final pId = _parseNumericId(productId);
+    final cId = _parseNumericId(customerId);
     final cleanNote = note != null && note.isNotEmpty
         ? (note.length > 255 ? note.substring(0, 255) : note)
         : null;
@@ -1061,6 +1069,8 @@ class ApiService {
     final data = await post('/stock/out', body: {
       'productId': pId,
       'quantity': quantity,
+      if (cId != null) 'customerId': cId,
+      if (reason != null && reason.isNotEmpty) 'reason': reason.toUpperCase(),
       if (cleanNote != null) 'note': cleanNote,
       if (transactionDate != null)
         'transactionDate': transactionDate.toUtc().toIso8601String(),

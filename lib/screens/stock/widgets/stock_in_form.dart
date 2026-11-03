@@ -102,6 +102,7 @@ class _StockInFormState extends State<StockInForm> {
       await stock.recordStockIn(
         productId: _selectedProduct!.id,
         quantity: _quantity,
+        supplierId: _selectedSupplierId ?? _selectedProduct!.supplierId,
         note: note,
         transactionDate: _date,
       );

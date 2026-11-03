@@ -173,6 +173,8 @@ class StockProvider extends ChangeNotifier {
   Future<StockMovement?> recordStockIn({
     required String productId,
     required int quantity,
+    dynamic supplierId,
+    double? unitCost,
     String? note,
     DateTime? transactionDate,
   }) async {
@@ -184,6 +186,8 @@ class StockProvider extends ChangeNotifier {
       final data = await _api.stockIn(
         productId: productId,
         quantity: quantity,
+        supplierId: supplierId,
+        unitCost: unitCost,
         note: note,
         transactionDate: transactionDate,
       );
@@ -204,6 +208,8 @@ class StockProvider extends ChangeNotifier {
   Future<StockMovement?> recordStockOut({
     required String productId,
     required int quantity,
+    dynamic customerId,
+    String? reason,
     String? note,
     DateTime? transactionDate,
   }) async {
@@ -222,6 +228,8 @@ class StockProvider extends ChangeNotifier {
       final data = await _api.stockOut(
         productId: productId,
         quantity: quantity,
+        customerId: customerId,
+        reason: reason,
         note: note,
         transactionDate: transactionDate,
       );
