@@ -439,12 +439,16 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen> {
                                                       const SizedBox(height: 3),
                                                       Row(
                                                         children: [
-                                                          Text(
-                                                            'SKU: ${product.sku}',
-                                                            style: const TextStyle(
-                                                              fontSize: 11,
-                                                              color: AppColors.secondaryText,
-                                                              fontWeight: FontWeight.w500,
+                                                          Flexible(
+                                                            child: Text(
+                                                              'SKU: ${product.sku}',
+                                                              style: const TextStyle(
+                                                                fontSize: 11,
+                                                                color: AppColors.secondaryText,
+                                                                fontWeight: FontWeight.w500,
+                                                              ),
+                                                              maxLines: 1,
+                                                              overflow: TextOverflow.ellipsis,
                                                             ),
                                                           ),
                                                           if (category != null || product.categoryName != null) ...[
@@ -466,8 +470,11 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen> {
                                                         ],
                                                       ),
                                                       const SizedBox(height: 6),
-                                                      Row(
-                                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                      Wrap(
+                                                        spacing: 8,
+                                                        runSpacing: 4,
+                                                        alignment: WrapAlignment.spaceBetween,
+                                                        crossAxisAlignment: WrapCrossAlignment.center,
                                                         children: [
                                                           Text(
                                                             AppUtils.formatCurrency(product.price),
@@ -492,8 +499,9 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen> {
                                                       IconButton(
                                                         icon: const Icon(Icons.edit_outlined, size: 20),
                                                         tooltip: 'Edit',
+                                                        visualDensity: VisualDensity.compact,
                                                         constraints: const BoxConstraints(),
-                                                        padding: const EdgeInsets.all(6),
+                                                        padding: const EdgeInsets.all(4),
                                                         onPressed: () => context.push('/products/edit/${product.id}'),
                                                       ),
                                                       IconButton(
@@ -509,16 +517,18 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen> {
                                                         tooltip: product.status.toLowerCase() == 'active'
                                                             ? 'Deactivate'
                                                             : 'Activate',
+                                                        visualDensity: VisualDensity.compact,
                                                         constraints: const BoxConstraints(),
-                                                        padding: const EdgeInsets.all(6),
+                                                        padding: const EdgeInsets.all(4),
                                                         onPressed: () => _handleToggleStatus(context, product),
                                                       ),
                                                       IconButton(
                                                         icon: const Icon(Icons.delete_outline_rounded,
                                                             size: 20, color: AppColors.danger),
                                                         tooltip: 'Delete',
+                                                        visualDensity: VisualDensity.compact,
                                                         constraints: const BoxConstraints(),
-                                                        padding: const EdgeInsets.all(6),
+                                                        padding: const EdgeInsets.all(4),
                                                         onPressed: () => _handleDeleteProduct(context, product),
                                                       ),
                                                     ],
