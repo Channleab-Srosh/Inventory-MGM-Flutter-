@@ -99,7 +99,8 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(isResend ? 'Verification code resent to $email' : genericMsg),
+          content: Text(
+              isResend ? 'Verification code resent to $email' : genericMsg),
           backgroundColor: AppColors.primary,
         ),
       );
@@ -143,7 +144,8 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
               Icon(Icons.check_circle_outline, color: Colors.white),
               SizedBox(width: 8),
               Expanded(
-                child: Text('Password reset successfully! You can now log in with your new password.'),
+                child: Text(
+                    'Password reset successfully! You can now log in with your new password.'),
               ),
             ],
           ),
@@ -162,9 +164,10 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
     final theme = Theme.of(context);
 
     return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: double.infinity , maxHeight: 680),
+        constraints: const BoxConstraints(maxWidth: 440, maxHeight: 680),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -180,7 +183,8 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
                       color: AppColors.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.lock_reset, color: AppColors.primary, size: 24),
+                    child: const Icon(Icons.lock_reset,
+                        color: AppColors.primary, size: 24),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -197,13 +201,15 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
                         const SizedBox(height: 2),
                         const Text(
                           'OTP Verification & Password Recovery',
-                          style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                          style: TextStyle(
+                              fontSize: 12, color: AppColors.secondaryText),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, size: 20, color: AppColors.secondaryText),
+                    icon: const Icon(Icons.close,
+                        size: 20, color: AppColors.secondaryText),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -217,20 +223,24 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
               // Active Error Banner
               if (_errorMessage != null) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: AppColors.danger.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
+                    border: Border.all(
+                        color: AppColors.danger.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.error_outline, color: AppColors.danger, size: 16),
+                      const Icon(Icons.error_outline,
+                          color: AppColors.danger, size: 16),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _errorMessage!,
-                          style: const TextStyle(color: AppColors.danger, fontSize: 12),
+                          style: const TextStyle(
+                              color: AppColors.danger, fontSize: 12),
                         ),
                       ),
                     ],
@@ -244,7 +254,9 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
                 child: SingleChildScrollView(
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 250),
-                    child: _currentStep == 0 ? _buildStep1Email(theme) : _buildStep2Reset(theme),
+                    child: _currentStep == 0
+                        ? _buildStep1Email(theme)
+                        : _buildStep2Reset(theme),
                   ),
                 ),
               ),
@@ -257,23 +269,27 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
 
   Widget _buildStepIndicator() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _buildStepItem(0, 'Enter Email', Icons.email_outlined),
-          Container(
-            width: 32,
-            height: 2,
-            margin: const EdgeInsets.symmetric(horizontal: 8),
-            color: _currentStep >= 1 ? AppColors.primary : Colors.grey.shade300,
-          ),
-          _buildStepItem(1, 'OTP & New Password', Icons.lock_outline),
-        ],
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildStepItem(0, 'Enter Email', Icons.email_outlined),
+            Container(
+              width: 24,
+              height: 2,
+              margin: const EdgeInsets.symmetric(horizontal: 8),
+              color:
+                  _currentStep >= 1 ? AppColors.primary : Colors.grey.shade300,
+            ),
+            _buildStepItem(1, 'OTP & New Password', Icons.lock_outline),
+          ],
+        ),
       ),
     );
   }
@@ -292,11 +308,11 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
     }
 
     return Row(
-      // mainAxisSize: MainAxisSize.min,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
           isDone ? Icons.check_circle : icon,
-          size: 9,
+          size: 14,
           color: color,
         ),
         const SizedBox(width: 6),
@@ -324,7 +340,6 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
             style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
           ),
           const SizedBox(height: 14),
-
           TextFormField(
             controller: _emailCtrl,
             keyboardType: TextInputType.emailAddress,
@@ -341,23 +356,26 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
             ),
             validator: (v) {
               if (v == null || v.trim().isEmpty) return 'Email is required';
-              if (!v.contains('@') || !v.contains('.')) return 'Enter a valid email address';
+              if (!v.contains('@') || !v.contains('.')) {
+                return 'Enter a valid email address';
+              }
               return null;
             },
             onFieldSubmitted: (_) => _handleSendOtp(),
           ),
           const SizedBox(height: 16),
-
           ElevatedButton.icon(
             onPressed: _isLoading ? null : () => _handleSendOtp(),
             icon: _isLoading
                 ? const SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
                   )
                 : const Icon(Icons.send_rounded, size: 18),
-            label: Text(_isLoading ? 'Sending OTP Code...' : 'Send OTP to Email'),
+            label:
+                Text(_isLoading ? 'Sending OTP Code...' : 'Send OTP to Email'),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 13),
             ),
@@ -380,7 +398,8 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
               Expanded(
                 child: Text(
                   'Code sent to: ${_emailCtrl.text}',
-                  style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.secondaryText),
                 ),
               ),
               TextButton.icon(
@@ -402,11 +421,13 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
               decoration: BoxDecoration(
                 color: AppColors.primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                border:
+                    Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
               ),
               child: Text(
                 _infoMessage!,
-                style: const TextStyle(fontSize: 12, color: AppColors.primaryDark),
+                style:
+                    const TextStyle(fontSize: 12, color: AppColors.primaryDark),
               ),
             ),
           ],
@@ -444,9 +465,11 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
           Align(
             alignment: Alignment.centerRight,
             child: TextButton.icon(
-              onPressed: _isLoading ? null : () => _handleSendOtp(isResend: true),
+              onPressed:
+                  _isLoading ? null : () => _handleSendOtp(isResend: true),
               icon: const Icon(Icons.refresh, size: 14),
-              label: const Text('Resend Code', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              label: const Text('Resend Code',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
             ),
           ),
           const SizedBox(height: 10),
@@ -461,7 +484,9 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
               prefixIcon: const Icon(Icons.lock_outline, size: 20),
               suffixIcon: IconButton(
                 icon: Icon(
-                  _obscureNew ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  _obscureNew
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
                   size: 20,
                 ),
                 onPressed: () => setState(() => _obscureNew = !_obscureNew),
@@ -481,13 +506,17 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
               prefixIcon: const Icon(Icons.lock_outline, size: 20),
               suffixIcon: IconButton(
                 icon: Icon(
-                  _obscureConfirm ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  _obscureConfirm
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
                   size: 20,
                 ),
-                onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                onPressed: () =>
+                    setState(() => _obscureConfirm = !_obscureConfirm),
               ),
             ),
-            validator: (v) => AppUtils.validateConfirmPassword(v, _newPasswordCtrl.text),
+            validator: (v) =>
+                AppUtils.validateConfirmPassword(v, _newPasswordCtrl.text),
             onFieldSubmitted: (_) => _handleResetPassword(),
           ),
           const SizedBox(height: 16),
@@ -499,10 +528,13 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
                 ? const SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
                   )
                 : const Icon(Icons.lock_reset, size: 18),
-            label: Text(_isLoading ? 'Updating Password...' : 'Reset Password & Sign In'),
+            label: Text(_isLoading
+                ? 'Updating Password...'
+                : 'Reset Password & Sign In'),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 13),
             ),

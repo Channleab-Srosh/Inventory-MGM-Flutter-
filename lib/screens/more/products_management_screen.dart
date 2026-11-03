@@ -566,18 +566,21 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen> {
                                                       const SizedBox(height: 3),
                                                       Row(
                                                         children: [
-                                                          Text(
-                                                            'SKU: ${product.sku}',
-                                                            style: const TextStyle(
-                                                              fontSize: 11,
-                                                              color: AppColors.secondaryText,
-                                                              fontWeight: FontWeight.w500,
+                                                          Flexible(
+                                                            child: Text(
+                                                              'SKU: ${product.sku}',
+                                                              style: const TextStyle(
+                                                                fontSize: 11,
+                                                                color: AppColors.secondaryText,
+                                                                fontWeight: FontWeight.w500,
+                                                              ),
+                                                              overflow: TextOverflow.ellipsis,
                                                             ),
                                                           ),
                                                           if (category != null || product.categoryName != null) ...[
-                                                            const SizedBox(width: 6),
+                                                            const SizedBox(width: 4),
                                                             const Text('·', style: TextStyle(color: AppColors.secondaryText)),
-                                                            const SizedBox(width: 6),
+                                                            const SizedBox(width: 4),
                                                             Flexible(
                                                               child: Text(
                                                                 category?.name ?? product.categoryName ?? '',
@@ -594,17 +597,23 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen> {
                                                       ),
                                                       const SizedBox(height: 6),
                                                       Row(
-                                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                         children: [
-                                                          Text(
-                                                            AppUtils.formatCurrency(product.price),
-                                                            style: const TextStyle(
-                                                              fontSize: 13,
-                                                              fontWeight: FontWeight.w700,
-                                                              color: AppColors.primaryDark,
+                                                          Flexible(
+                                                            child: Text(
+                                                              AppUtils.formatCurrency(product.price),
+                                                              style: const TextStyle(
+                                                                fontSize: 13,
+                                                                fontWeight: FontWeight.w700,
+                                                                color: AppColors.primaryDark,
+                                                              ),
+                                                              overflow: TextOverflow.ellipsis,
                                                             ),
                                                           ),
-                                                          _buildStockChip(product),
+                                                          const SizedBox(width: 8),
+                                                          FittedBox(
+                                                            fit: BoxFit.scaleDown,
+                                                            child: _buildStockChip(product),
+                                                          ),
                                                         ],
                                                       ),
                                                     ],
@@ -612,41 +621,65 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen> {
                                                 ),
                                                 // Actions
                                                 if (canManageProducts) ...[
-                                                  const SizedBox(width: 4),
-                                                  Row(
-                                                    mainAxisSize: MainAxisSize.min,
-                                                    children: [
-                                                      IconButton(
-                                                        icon: const Icon(Icons.edit_outlined, size: 20),
-                                                        tooltip: 'Edit',
-                                                        constraints: const BoxConstraints(),
-                                                        padding: const EdgeInsets.all(6),
-                                                        onPressed: () => context.push('/products/edit/${product.id}'),
-                                                      ),
-                                                      IconButton(
-                                                        icon: Icon(
-                                                          product.status.toLowerCase() == 'active'
-                                                              ? Icons.toggle_on
-                                                              : Icons.toggle_off,
-                                                          size: 26,
-                                                          color: product.status.toLowerCase() == 'active'
-                                                              ? AppColors.inStock
-                                                              : AppColors.secondaryText,
+                                                  PopupMenuButton<String>(
+                                                    icon: const Icon(
+                                                      Icons.more_vert_rounded,
+                                                      size: 20,
+                                                      color: AppColors.secondaryText,
+                                                    ),
+                                                    tooltip: 'Actions',
+                                                    padding: EdgeInsets.zero,
+                                                    constraints: const BoxConstraints(),
+                                                    onSelected: (value) {
+                                                      if (value == 'edit') {
+                                                        context.push('/products/edit/${product.id}');
+                                                      } else if (value == 'toggle') {
+                                                        _handleToggleStatus(context, product);
+                                                      } else if (value == 'delete') {
+                                                        _handleDeleteProduct(context, product);
+                                                      }
+                                                    },
+                                                    itemBuilder: (ctx) => [
+                                                      const PopupMenuItem(
+                                                        value: 'edit',
+                                                        child: Row(
+                                                          children: [
+                                                            Icon(Icons.edit_outlined, size: 18, color: AppColors.primary),
+                                                            SizedBox(width: 8),
+                                                            Text('Edit'),
+                                                          ],
                                                         ),
-                                                        tooltip: product.status.toLowerCase() == 'active'
-                                                            ? 'Deactivate'
-                                                            : 'Activate',
-                                                        constraints: const BoxConstraints(),
-                                                        padding: const EdgeInsets.all(6),
-                                                        onPressed: () => _handleToggleStatus(context, product),
                                                       ),
-                                                      IconButton(
-                                                        icon: const Icon(Icons.delete_outline_rounded,
-                                                            size: 20, color: AppColors.danger),
-                                                        tooltip: 'Delete',
-                                                        constraints: const BoxConstraints(),
-                                                        padding: const EdgeInsets.all(6),
-                                                        onPressed: () => _handleDeleteProduct(context, product),
+                                                      PopupMenuItem(
+                                                        value: 'toggle',
+                                                        child: Row(
+                                                          children: [
+                                                            Icon(
+                                                              product.status.toLowerCase() == 'active'
+                                                                  ? Icons.pause_circle_outline
+                                                                  : Icons.play_circle_outline,
+                                                              size: 18,
+                                                              color: product.status.toLowerCase() == 'active'
+                                                                  ? AppColors.warning
+                                                                  : AppColors.inStock,
+                                                            ),
+                                                            const SizedBox(width: 8),
+                                                            Text(product.status.toLowerCase() == 'active'
+                                                                ? 'Deactivate'
+                                                                : 'Activate'),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                      const PopupMenuItem(
+                                                        value: 'delete',
+                                                        child: Row(
+                                                          children: [
+                                                            Icon(Icons.delete_outline_rounded,
+                                                                size: 18, color: AppColors.danger),
+                                                            SizedBox(width: 8),
+                                                            Text('Delete', style: TextStyle(color: AppColors.danger)),
+                                                          ],
+                                                        ),
                                                       ),
                                                     ],
                                                   ),

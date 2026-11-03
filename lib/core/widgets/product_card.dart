@@ -73,6 +73,7 @@ class ProductCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       // Line 1: Title (Semi-bold, 15px, deep charcoal)
                       Text(
@@ -102,7 +103,11 @@ class ProductCard extends StatelessWidget {
                       const SizedBox(height: 5),
 
                       // Line 3: "8 in Stock  |  ↓ 12%"
-                      _buildStockLine(),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: _buildStockLine(),
+                      )
                     ],
                   ),
                 ),
@@ -154,47 +159,46 @@ class ProductCard extends StatelessWidget {
     final isOut = product.stockStatus == StockStatus.outOfStock;
     final isLow = product.stockStatus == StockStatus.lowStock;
 
-    // Trend percentage logic matching mockup:
-    // Out of Stock: "0 in Stock  |  ↓ 100%"
-    // Low Stock: "8 in Stock  |  ↓ 12%"
-    // In Stock: "89 in Stock  |  ↑ 6%"
     final String trendText = isOut
         ? '↓ 100%'
         : (isLow ? '↓ 12%' : '↑ ${(product.quantity % 15) + 4}%');
     final Color trendColor =
         (isOut || isLow) ? AppColors.outOfStockText : AppColors.inStockText;
 
-    return Text.rich(
-      TextSpan(
-        children: [
-          TextSpan(
-            text: '${product.quantity} in Stock',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: AppColors.text,
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: '${product.quantity} in Stock',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: AppColors.text,
+              ),
             ),
-          ),
-          const TextSpan(
-            text: '  |  ',
-            style: TextStyle(
-              fontSize: 11,
-              color: AppColors.secondaryText,
-              fontWeight: FontWeight.w400,
+            const TextSpan(
+              text: '  |  ',
+              style: TextStyle(
+                fontSize: 11,
+                color: AppColors.secondaryText,
+                fontWeight: FontWeight.w400,
+              ),
             ),
-          ),
-          TextSpan(
-            text: trendText,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: trendColor,
+            TextSpan(
+              text: trendText,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: trendColor,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
+        maxLines: 1,
       ),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
     );
   }
 

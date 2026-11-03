@@ -48,7 +48,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   void _onScroll() {
     if (_scrollCtrl.hasClients &&
-        _scrollCtrl.position.pixels >= _scrollCtrl.position.maxScrollExtent - 200) {
+        _scrollCtrl.position.pixels >=
+            _scrollCtrl.position.maxScrollExtent - 200) {
       context.read<ProductProvider>().loadMoreProducts();
     }
   }
@@ -125,7 +126,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
               padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 0),
               child: Row(
                 children: [
-                  Column(
+                  Expanded(
+                    child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
@@ -149,8 +151,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         ),
                       ),
                     ],
+                    ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   if (canManageProducts)
                     GestureDetector(
                       onTap: () => context.push('/products/add'),
@@ -245,8 +248,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           const SizedBox(width: 8),
                           _FilterPill(
                             label: 'Out of Stock',
-                            selected: products.statusFilter ==
-                                StockStatus.outOfStock,
+                            selected:
+                                products.statusFilter == StockStatus.outOfStock,
                             onTap: () => products
                                 .setStatusFilter(StockStatus.outOfStock),
                           ),
@@ -255,8 +258,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             label: 'Low Stock',
                             selected:
                                 products.statusFilter == StockStatus.lowStock,
-                            onTap: () => products
-                                .setStatusFilter(StockStatus.lowStock),
+                            onTap: () =>
+                                products.setStatusFilter(StockStatus.lowStock),
                           ),
                           const SizedBox(width: 8),
                           if (canViewCategories)
@@ -267,11 +270,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                   label: cat.name,
                                   selected:
                                       products.selectedCategoryId == cat.id,
-                                  onTap: () =>
-                                      products.setCategoryFilter(
-                                          products.selectedCategoryId == cat.id
-                                              ? null
-                                              : cat.id),
+                                  onTap: () => products.setCategoryFilter(
+                                      products.selectedCategoryId == cat.id
+                                          ? null
+                                          : cat.id),
                                 ),
                               ),
                             ),
@@ -421,30 +423,33 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                           endActionPane: canManageProducts
                                               ? ActionPane(
                                                   motion: const DrawerMotion(),
+                                                  extentRatio: 0.65,
                                                   children: [
-                                                    SlidableAction(
-                                                      onPressed: (_) =>
+                                                    _ProductSlidableAction(
+                                                      onPressed: () =>
                                                           context.push(
                                                               '/products/edit/${product.id}'),
                                                       backgroundColor:
                                                           AppColors.primaryDark,
-                                                      foregroundColor:
-                                                          Colors.white,
-                                                      icon:
-                                                          Icons.edit_outlined,
+                                                      icon: Icons.edit_outlined,
                                                       label: 'Edit',
                                                       borderRadius:
                                                           const BorderRadius
                                                               .horizontal(
-                                                              left:
-                                                                  Radius.circular(
+                                                              left: Radius
+                                                                  .circular(
                                                                       12)),
                                                     ),
-                                                    SlidableAction(
-                                                      onPressed: (_) async {
-                                                        final ok = await products.toggleProductStatus(product.id);
-                                                        if (context.mounted && ok) {
-                                                          ScaffoldMessenger.of(context).showSnackBar(
+                                                    _ProductSlidableAction(
+                                                      onPressed: () async {
+                                                        final ok = await products
+                                                            .toggleProductStatus(
+                                                                product.id);
+                                                        if (context.mounted &&
+                                                            ok) {
+                                                          ScaffoldMessenger.of(
+                                                                  context)
+                                                              .showSnackBar(
                                                             SnackBar(
                                                               content: Text(
                                                                 '${product.name} is now ${product.status == "Active" ? "Inactive" : "Active"}',
@@ -453,26 +458,28 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                                           );
                                                         }
                                                       },
-                                                      backgroundColor: product.status == 'Active'
-                                                          ? const Color(0xFFD97706)
+                                                      backgroundColor: product
+                                                                  .status ==
+                                                              'Active'
+                                                          ? const Color(
+                                                              0xFFD97706)
                                                           : AppColors.inStock,
-                                                      foregroundColor: Colors.white,
-                                                      icon: product.status == 'Active'
+                                                      icon: product.status ==
+                                                              'Active'
                                                           ? Icons.block_outlined
-                                                          : Icons.check_circle_outline,
-                                                      label: product.status == 'Active'
+                                                          : Icons
+                                                              .check_circle_outline,
+                                                      label: product.status ==
+                                                              'Active'
                                                           ? 'Deactivate'
                                                           : 'Activate',
                                                     ),
-                                                    SlidableAction(
-                                                      onPressed: (_) =>
+                                                    _ProductSlidableAction(
+                                                      onPressed: () =>
                                                           _deleteProduct(
                                                               context, product),
-                                                      backgroundColor:
-                                                          AppColors
-                                                              .outOfStockText,
-                                                      foregroundColor:
-                                                          Colors.white,
+                                                      backgroundColor: AppColors
+                                                          .outOfStockText,
                                                       icon:
                                                           Icons.delete_outlined,
                                                       label: 'Delete',
@@ -493,8 +500,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                                     product.categoryName ??
                                                     '')
                                                 : '',
-                                            onTap: () => context
-                                                .push('/products/${product.id}'),
+                                            onTap: () => context.push(
+                                                '/products/${product.id}'),
                                           ),
                                         );
                                       },
@@ -518,7 +525,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   ) {
     final textScale =
         MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.4);
-    final cardHeight = (112.0 * textScale).clamp(112.0, 148.0);
+    final cardHeight = (122.0 * textScale).clamp(122.0, 160.0);
 
     final isLoadingMore = context.watch<ProductProvider>().isLoadingMore;
 
@@ -543,27 +550,26 @@ class _ProductsScreenState extends State<ProductsScreen> {
           );
         }
         final product = filtered[i];
-        final cat = canViewCategories
-            ? categories.findById(product.categoryId)
-            : null;
+        final cat =
+            canViewCategories ? categories.findById(product.categoryId) : null;
         return Slidable(
           key: ValueKey(product.id),
           endActionPane: canManageProducts
               ? ActionPane(
                   motion: const DrawerMotion(),
+                  extentRatio: 0.65,
                   children: [
-                    SlidableAction(
-                      onPressed: (_) =>
+                    _ProductSlidableAction(
+                      onPressed: () =>
                           context.push('/products/edit/${product.id}'),
                       backgroundColor: AppColors.primaryDark,
-                      foregroundColor: Colors.white,
                       icon: Icons.edit_outlined,
                       label: 'Edit',
                       borderRadius: const BorderRadius.horizontal(
                           left: Radius.circular(12)),
                     ),
-                    SlidableAction(
-                      onPressed: (_) async {
+                    _ProductSlidableAction(
+                      onPressed: () async {
                         final ok = await context
                             .read<ProductProvider>()
                             .toggleProductStatus(product.id);
@@ -580,16 +586,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       backgroundColor: product.status == 'Active'
                           ? const Color(0xFFD97706)
                           : AppColors.inStock,
-                      foregroundColor: Colors.white,
                       icon: product.status == 'Active'
                           ? Icons.block_outlined
                           : Icons.check_circle_outline,
-                      label: product.status == 'Active' ? 'Deactivate' : 'Activate',
+                      label:
+                          product.status == 'Active' ? 'Deactivate' : 'Activate',
                     ),
-                    SlidableAction(
-                      onPressed: (_) => _deleteProduct(context, product),
+                    _ProductSlidableAction(
+                      onPressed: () => _deleteProduct(context, product),
                       backgroundColor: AppColors.outOfStockText,
-                      foregroundColor: Colors.white,
                       icon: Icons.delete_outlined,
                       label: 'Delete',
                       borderRadius: const BorderRadius.horizontal(
@@ -658,6 +663,61 @@ class _FilterPill extends StatelessWidget {
                 color: selected ? AppColors.primaryDark : AppColors.text,
                 letterSpacing: -0.1,
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+/// Overflow-proof Slidable Action that scales text and icon to fit any screen width
+class _ProductSlidableAction extends StatelessWidget {
+  final VoidCallback onPressed;
+  final Color backgroundColor;
+  final IconData icon;
+  final String label;
+  final BorderRadius borderRadius;
+
+  const _ProductSlidableAction({
+    required this.onPressed,
+    required this.backgroundColor,
+    required this.icon,
+    required this.label,
+    this.borderRadius = BorderRadius.zero,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomSlidableAction(
+      onPressed: (_) => onPressed(),
+      backgroundColor: backgroundColor,
+      foregroundColor: Colors.white,
+      borderRadius: borderRadius,
+      padding: EdgeInsets.zero,
+      child: Center(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 20, color: Colors.white),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                  maxLines: 1,
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
           ),
         ),
